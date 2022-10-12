@@ -1,0 +1,3 @@
+To add a new heist, please make sure you have:
+- Added a coroutine function to baintools.PlayerHeist
+- Added a save copy to heist_rewards_database.json
