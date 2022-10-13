@@ -1535,6 +1535,14 @@ async def hack(ctx, user: discord.Member):
 
     await ctx.reply(content=None, embed=hack_lobby, view=hack_view)
 
+@bot.command()
+async def rickroll(ctx, user: discord.Member = None):
+    if user is None:
+        user = ctx.author
+    embed = discord.Embed(title=":)", description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message!", colour=discord.Color.blurple())
+    embed.set_image(url="https://media.tenor.com/_4YgA77ExHEAAAAd/rick-roll.gif")
+    
+    await ctx.reply(content=f"{user.mention}:", embed=embed)
 
 # Voice
 @bot.command()
