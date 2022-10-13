@@ -24,7 +24,6 @@ from wikipedia import PageError, DisambiguationError
 from baintools import PlayerInfo, PlayerHeist
 
 
-print("Testing message.")
 print("Bain is connecting to CRIME.NET...")
 
 # Secrets
@@ -441,7 +440,7 @@ async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=N
         await ctx.reply("Specify a user.")
     else:
         if deletemessages == "yes," or deletemessages == "true,":
-            await user.ban(delete_message_days=7, reason=reason)
+            await user.ban(delete_message_days=604800, reason=reason)
             await ctx.reply(
                 f"Successfully banned {user.mention}, and deleted their messages in the past week. Reason: ``{ctx.author} - {reason}``")
         elif deletemessages == "no," or deletemessages == "false,":
@@ -1539,10 +1538,10 @@ async def hack(ctx, user: discord.Member):
 async def rickroll(ctx, user: discord.Member = None):
     if user is None:
         user = ctx.author
-    embed = discord.Embed(title=":)", description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message!", colour=discord.Color.blurple())
+    embed = discord.Embed(title=":)", description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message... Teehee!", colour=discord.Color.blurple())
     embed.set_image(url="https://media.tenor.com/_4YgA77ExHEAAAAd/rick-roll.gif")
     
-    await ctx.reply(content=f"{user.mention}:", embed=embed)
+    await ctx.reply(content=f"{user.mention}:" if user != ctx.author else None, embed=embed)
 
 # Voice
 @bot.command()
@@ -1720,6 +1719,10 @@ async def _customize_char(ctx, *char_name):
     embed = discord.Embed(title="CRIME.NET/Profile", description=f"`Successfully changed your character to {(await get_item(char))['name']}.`", colour=discord.Colour.blurple())
     await ctx.reply(embed=embed)
 
+@bot.command(name="char")
+async def _customize_char_revoke_char(ctx: discord.ext.commands.Context, *args):
+    await ctx.invoke(_customize_char, *args)
+
 # Player system/Currency MAIN
 @bot.command()
 async def heist(ctx, *_contract_name: str):
@@ -1776,6 +1779,32 @@ async def heist(ctx, *_contract_name: str):
                           colour=discord.Colour.blurple())
 
     await ctx.reply(content=None, embed=embed, view=diff_select_view)
+
+@bot.command()
+async def inventory(ctx, user: discord.Member = None):
+    await player_create(ctx, ctx.author.id)
+    if user is None:
+        user = ctx.author
+
+    data = (await player_database())[str(user.id)]
+    embed_data = {}
+
+    for attr, val in data.items():
+        if (await get_item(attr))["valid"]:
+            try:
+                if val > 0:
+                    embed_data[(string.capwords((await get_item(attr))["category"]))].append(str(f"{'{:,}'.format(val)}x "+(await get_item(attr))["name"]))
+            except KeyError:
+                if val > 0:
+                    embed_data[(string.capwords((await get_item(attr))["category"]))] = [str(f"{'{:,}'.format(val)}x {(await get_item(attr))['name']}")]
+
+    embed = discord.Embed(title=f"CRIME.NET/{ctx.author.name}/Inventory", colour=discord.Color.blurple())
+    print(embed_data.items())
+    for category, items in embed_data.items():
+        print(items)
+        embed.add_field(name=category, value="\n".join(items))
+
+    await ctx.reply(embed=embed)
 
 # Player system/Casual
 @bot.command()
