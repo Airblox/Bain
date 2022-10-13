@@ -1804,6 +1804,8 @@ async def inventory(ctx, user: discord.Member = None):
         print(items)
         embed.add_field(name=category, value="\n".join(items))
 
+    embed.set_thumbnail(url=ctx.author.avatar)
+
     await ctx.reply(embed=embed)
 
 # Player system/Casual
