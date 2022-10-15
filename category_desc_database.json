@@ -1,0 +1,7 @@
+{
+  "weapon": {
+    "name": "Weapon",
+    "description": "Weapons that a player own.",
+    "emoji": "<:amcar_old:1030490962490839051>"
+  }
+}

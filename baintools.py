@@ -177,7 +177,6 @@ class PlayerInfo:
         # Secondary Weapons
         "w_chimano88": 1,
         "w_crosskill": 0,
-        "w_crosskill": 0,
 
         # Heists
         "heist_stat_success": 0,

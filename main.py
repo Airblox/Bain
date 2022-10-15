@@ -840,9 +840,15 @@ async def define(ctx, *args):
 async def poll(ctx, name, *args):
     name = name.replace(",", "")
     args_list = []
+    current_arg = ""
     for z in args:
-        z = z.replace(",", "")
-        args_list.append(z)
+        if z.endswith(","):
+            current_arg = current_arg + " " + z[:-1]
+            args_list.append(current_arg)
+            current_arg = ""
+        else:
+            current_arg = current_arg + " " + z
+    args_list.append(current_arg)
     castedvotes = {}
     poll_provided = []
     args_loop = 1
@@ -859,6 +865,9 @@ async def poll(ctx, name, *args):
         options=poll_provided,
         row=0
     )
+
+    async def poll_select_callback(interaction):
+        await interaction.response.defer()
 
     async def poll_vote_callback(interaction):
         castedvotes[f"{interaction.user.id}"] = poll_options.values[0]
@@ -905,10 +914,11 @@ async def poll(ctx, name, *args):
         elif interaction.user != ctx.author:
             await interaction.response.send_message("This poll isn't created by you!", ephemeral=True)
 
+    poll_options.callback = poll_select_callback
     poll_vote.callback = poll_vote_callback
     poll_end.callback = poll_end_callback
 
-    poll_view = View()
+    poll_view = View(timeout=None)
     poll_view.add_item(poll_vote)
     poll_view.add_item(poll_options)
     poll_view.add_item(poll_end)
@@ -1540,7 +1550,8 @@ async def rickroll(ctx, user: discord.Member = None):
         user = ctx.author
     embed = discord.Embed(title=":)", description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message... Teehee!", colour=discord.Color.blurple())
     embed.set_image(url="https://media.tenor.com/_4YgA77ExHEAAAAd/rick-roll.gif")
-    
+
+    await ctx.message.delete()
     await ctx.reply(content=f"{user.mention}:" if user != ctx.author else None, embed=embed)
 
 # Voice
@@ -1653,10 +1664,7 @@ async def _status(ctx):
 async def _end(ctx):
     print(f"Program killed in {ctx.guild.name}.")
     await ctx.send(f"Program killed by {ctx.author.mention}! I'm going offline now. See you guys at the safehouse.")
-    try:
-        exit()
-    except Exception:
-        pass
+    exit()
 
 
 @bot.command()
@@ -1698,8 +1706,8 @@ async def profile(ctx, user: discord.Member = None):
     await player_create(ctx, user.id)
     data = (await player_database())[str(user.id)]
     profile_char_dtb = (await get_item(data['char']))
-    profile_char = f"**{profile_char_dtb['name'].upper()}**\n**Age:** {profile_char_dtb['age']}\n**Height:** {profile_char_dtb['physical_description']['height'][0]}\n**Build:** {', '.join(profile_char_dtb['physical_description']['build'])}"
-    profile_reputation = f"**Infamy {data['infamy']}**\n**Reputation Level {baintools.to_roman(data['infamy']) if data['infamy'] > 0 else ''}{'-' if data['infamy'] > 0 else ''}{data['reputation']}**\n{'{:,}'.format(data['exp'])}/{'{:,}'.format(baintools.calculate_experience(data['reputation']))} EXP\n**{'{:,}'.format(data['heist_stat_success'])}** heists succeeded\n**{'{:,}'.format(data['heist_stat_failure'])}** heists failed\n[Success rate: {baintools.calculate_success_rate(data)}]"
+    profile_char = f"**{profile_char_dtb['name'].upper()}**\n**Age:** {profile_char_dtb['age']}\n**Height:** {profile_char_dtb['physical_description']['height'][0]}\n**Build:** {', '.join(profile_char_dtb['physical_description']['build'])}\n**Signature Weapon:** {(await get_item(data['weapon']))['name']} {(await get_item(data['weapon']))['emoji']}"
+    profile_reputation = f"**Heisting since:** {':'.join(datetime.datetime.fromtimestamp(data['join']).strftime('%Y-%m-%d %H:%M:%S.%f').split(':')[:2:])}\n**Infamy {data['infamy']}**\n**Reputation Level {baintools.to_roman(data['infamy']) if data['infamy'] > 0 else ''}{'-' if data['infamy'] > 0 else ''}{data['reputation']}**\n{'{:,}'.format(data['exp'])}/{'{:,}'.format(baintools.calculate_experience(data['reputation']))} EXP\n**{'{:,}'.format(data['heist_stat_success'])}** heists succeeded\n**{'{:,}'.format(data['heist_stat_failure'])}** heists failed\n[Success rate: {baintools.calculate_success_rate(data)}]"
     embed = discord.Embed(
         title=user.name,
         description=f"{profile_char}\n\n{profile_reputation}",
@@ -1709,19 +1717,43 @@ async def profile(ctx, user: discord.Member = None):
     embed.set_image(url=profile_char_dtb['image_fbi_photo'])
     await ctx.reply(embed=embed)
 
-@bot.command(name="character")
+@bot.group(name="customize")
+async def _customize(ctx: commands.Context):
+    if ctx.invoked_subcommand is None:
+        await throw_crimenet_error(ctx, 404)
+
+@_customize.command(name="character")
 async def _customize_char(ctx, *char_name):
     await player_create(ctx, ctx.author.id)
     data = await player_database()
     char = "_".join(char_name).lower()
     data[str(ctx.author.id)]["char"] = char
     await player_save(data)
-    embed = discord.Embed(title="CRIME.NET/Profile", description=f"`Successfully changed your character to {(await get_item(char))['name']}.`", colour=discord.Colour.blurple())
+    embed = discord.Embed(title="CRIME.NET/Profile", description=f"`Successfully changed your character to {(await get_item(char))['name']}.`", colour=discord.Colour.blurple()).set_thumbnail(url=(await get_item(char))['image_mask'])
     await ctx.reply(embed=embed)
 
-@bot.command(name="char")
-async def _customize_char_revoke_char(ctx: discord.ext.commands.Context, *args):
+@_customize.command(name="char")
+async def _customize_char_revoke_char(ctx, *args):
     await ctx.invoke(_customize_char, *args)
+
+@_customize.command(name="weapon")
+async def _customize_weapon(ctx, *weapon_name):
+    await player_create(ctx, ctx.author.id)
+    try:
+        await get_item("w_" + "_".join(weapon_name).lower().replace(".", ""))
+    except KeyError:
+        await throw_crimenet_error(ctx, 200, note="Weapon doesn't exist.")
+    else:
+        data = await player_database()
+        if data[str(ctx.author.id)]["w_" + "_".join(weapon_name)] > 0:
+            await player_setattr(str(ctx.author.id), "weapon", "w_" + "_".join(weapon_name).lower().replace(".", ""))
+            await ctx.reply(embed=discord.Embed(title="CRIME.NET/Profile", description=f"Successfully changed your signature weapon to `{(await get_item('w_' + ' '.join(weapon_name)))['name']}`.", colour=discord.Colour.blurple()).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/7/73/AMCAR-icon.png/revision/latest/scale-to-width-down/200?cb=20130806182054"))
+        else:
+            await throw_crimenet_error(ctx, 200, note="You don't own this weapon.")
+
+@_customize.command(name="wp")
+async def _customize_weapon_revoke_wp(ctx, *args):
+    await ctx.invoke(_customize_weapon, *args)
 
 # Player system/Currency MAIN
 @bot.command()
@@ -1729,7 +1761,7 @@ async def heist(ctx, *_contract_name: str):
     await player_create(ctx, ctx.author.id)
     _contract = " ".join(_contract_name)
     if len(_contract_name) == 0 or _contract not in baintools.heist_list:
-        raise TypeError("Invalid job.")
+        await throw_crimenet_error(ctx, 200, note="Invalid job.")
     data = {}
     diff_select_view = View()
     difficulty_select = baintools.difficulty_select
@@ -1780,38 +1812,76 @@ async def heist(ctx, *_contract_name: str):
 
     await ctx.reply(content=None, embed=embed, view=diff_select_view)
 
+# Player system/Currency PROFILE
 @bot.command()
 async def inventory(ctx, user: discord.Member = None):
     await player_create(ctx, ctx.author.id)
     if user is None:
         user = ctx.author
 
-    data = (await player_database())[str(user.id)]
+    try:
+        data = (await player_database())[str(user.id)]
+    except KeyError:
+        await ctx.reply("User is not on `CRIME.NET`.")
+        return
     embed_data = {}
 
     for attr, val in data.items():
         if (await get_item(attr))["valid"]:
             try:
                 if val > 0:
-                    embed_data[(string.capwords((await get_item(attr))["category"]))].append(str(f"{'{:,}'.format(val)}x "+(await get_item(attr))["name"]))
+                    embed_data[((await get_item(attr))["category"])].append(str(f"{'{:,}'.format(val)}x "+(await get_item(attr))["name"]))
             except KeyError:
                 if val > 0:
-                    embed_data[(string.capwords((await get_item(attr))["category"]))] = [str(f"{'{:,}'.format(val)}x {(await get_item(attr))['name']}")]
+                    embed_data[((await get_item(attr))["category"])] = [str(f"{'{:,}'.format(val)}x {(await get_item(attr))['name']}")]
 
-    embed = discord.Embed(title=f"CRIME.NET/{ctx.author.name}/Inventory", colour=discord.Color.blurple())
-    print(embed_data.items())
+    embeds = []
+    select_options = []
     for category, items in embed_data.items():
-        print(items)
-        embed.add_field(name=category, value="\n".join(items))
+        category_data = await get_category_desc(category)
+        embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Inventory", description=f"**Inventory/{category_data['name']}\n**"+"\n".join(items), colour=discord.Color.blurple())
+        embed.set_thumbnail(url=user.avatar)
+        option = discord.SelectOption(label=category_data["name"], description=category_data["description"], emoji=category_data["emoji"])
+        embeds.append(embed)
+        select_options.append(option)
 
-    embed.set_thumbnail(url=ctx.author.avatar)
+    select = Select(placeholder="Select a category...", options=select_options)
 
-    await ctx.reply(embed=embed)
+    async def select_callback(interaction):
+        designated_embed = None
+        for i in embeds:
+            if i.description.startswith(f"**Inventory/{select.values[0]}"):
+                designated_embed = embed
+        await interaction.response.edit_message(embed=designated_embed)
+
+    select.callback = select_callback
+    view = View()
+    view.add_item(select)
+
+    await ctx.reply(embed=embeds[0], view=view)
+
+@bot.command(name="inv")
+async def inventory_invoke_inv(ctx, user: discord.Member = None):
+    if user is None:
+        user = ctx.author
+    await ctx.invoke(inventory, user)
+
+@bot.command()
+async def balance(ctx, user: discord.Member = None):
+    await player_create(ctx, ctx.author.id)
+    data = await player_database()
 
 # Player system/Casual
 @bot.command()
 async def bet(ctx, amount: int = 1000):
     await player_create(ctx, ctx.author.id)
+    cash_amt = (await player_database())[str(ctx.author.id)]['cash']
+    if amount > cash_amt:
+        await throw_crimenet_error(ctx, 200, note="You don't enough money.")
+        return
+    elif amount < 1000:
+        await throw_crimenet_error(ctx, 200, note="You need to bet at least $1,000.")
+        return
     bain_bet = random.randint(1, 15)
     player_bet = random.randint(1, 15)
     diff = abs(bain_bet - player_bet)
@@ -1850,7 +1920,6 @@ async def bet(ctx, amount: int = 1000):
                         value=f"_`Transaction completed: {baintools.generate_transaction_id(35)}`_", inline=False)
         await player_add_bal(ctx.author.id, "cash", diff * amount * -1)
         await ctx.reply(content=None, embed=embed)
-
 
 @bot.command()
 async def scout(ctx):
@@ -2022,6 +2091,13 @@ async def get_item(item):
         return data[item]
 
 
+async def get_category_desc(category=None):
+    with open("category_desc_database.json") as file:
+        if category is not None:
+            return json.load(file)[category]
+        else:
+            return json.load(file)
+
 # .define command
 async def dictsearch(arg):
     async with aiohttp.ClientSession() as session:
@@ -2031,6 +2107,14 @@ async def dictsearch(arg):
             r = await res.text()
             return r
 
+# CRIME.NET custom embed errors
+async def throw_crimenet_error(ctx: commands.Context, err_code: int = 404, note: str = None):
+    guide = {
+        200: "Bad request. Try passing some valid arguments?",
+        404: "Not found. Try using a valid command?"
+    }
+    embed = discord.Embed(title=f"CRIME.NET/Error/{err_code}", description=guide[err_code], colour=discord.Colour.red())
+    await ctx.reply(content=None if note is None else f"`{note}`", embed=discord.Embed(title=f"CRIME.NET/Error/{err_code}", description=guide[err_code], colour=discord.Colour.red()))
 
 # .wiki command
 def wikisummary(arg):
