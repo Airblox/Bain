@@ -117,6 +117,7 @@
 
   "w_amcar": {
     "name": "AMCAR",
+    "description": "Fully automatic 5.56mm. Decent accuracy and damage.",
     "type": "Assault Rifle",
     "category": "weapon",
     "slot": "primary",
@@ -138,6 +139,7 @@
   },
   "w_ak": {
     "name": "AK Rifle",
+    "description": "30-round assault rifle. Decent rate of fire and accuracy.",
     "type": "Assault Rifle",
     "category": "weapon",
     "slot": "primary",
@@ -159,6 +161,7 @@
   },
   "w_car4": {
     "name": "CAR-4",
+    "description": "30-round assault rifle. Good handling and accuracy. Very versatile overall.",
     "type": "Assault Rifle",
     "category": "weapon",
     "slot": "primary",
@@ -180,6 +183,7 @@
   },
   "w_uar": {
     "name": "UAR Rifle",
+    "description": "30-round bullpup assault rifle. Good stopping power and accuracy.",
     "type": "Assault Rifle",
     "category": "weapon",
     "slot": "primary",
@@ -200,7 +204,8 @@
     "valid": true
   },
   "w_ak762": {
-    "name": "UAR Rifle",
+    "name": "AK.762",
+    "description": "High powered, deadly, 30-round assault rifle.",
     "type": "Assault Rifle",
     "category": "weapon",
     "slot": "primary",
@@ -223,6 +228,7 @@
 
   "w_chimano88": {
     "name": "Chimano 88",
+    "description": "Semi-automatic 9mm. Decent accuracy, decent capacity, decent damage.",
     "type": "Pistol",
     "category": "weapon",
     "slot": "secondary",
@@ -244,6 +250,7 @@
   },
   "w_crosskill": {
     "name": "Crosskill",
+    "description": "Semi-automatic .45ACP. Medium stopping but low capacity.",
     "type": "Pistol",
     "category": "weapon",
     "slot": "secondary",
@@ -260,6 +267,28 @@
       "concealment": 29,
       "threat": 10,
       "reload": 2
+    },
+    "valid": true
+  },
+
+  "wmod_lowprofilesuppressor": {
+    "name": "Low Profile Suppressor",
+    "description": "Suppressor, highly concealable.",
+    "type": "suppressor",
+    "category": "weapon mod",
+    "slot": "barrel extension",
+    "emoji": "<:low_profile_suppressor:1031142434052243506>",
+    "data": {
+      "effects": ["Silences weapon."],
+      "cost": 21000,
+      "total_ammo": null,
+      "reload": null,
+      "accuracy": null,
+      "concealment": null,
+      "magazine": null,
+      "damage": -5,
+      "stability": null,
+      "threat": -16.8
     },
     "valid": true
   }

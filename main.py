@@ -1658,18 +1658,16 @@ async def play(ctx, song):
 async def _status(ctx):
     await ctx.reply(f"Online! Running.")
 
-
-@bot.command(name="end")
+@bot.command()
 @commands.is_owner()
 async def _end(ctx):
     print(f"Program killed in {ctx.guild.name}.")
     await ctx.send(f"Program killed by {ctx.author.mention}! I'm going offline now. See you guys at the safehouse.")
     exit()
 
-
-@bot.command()
+@bot.command(name="_generate_inv")
 @commands.is_owner()
-async def geninv(ctx, id: int):
+async def _gen_inv(ctx, id: int):
     if id is None:
         id = ctx.guild.id
     await ctx.message.delete()
@@ -1692,9 +1690,167 @@ async def geninv(ctx, id: int):
     dm = await user.create_dm()
     await dm.send(content=f"{str(channel.url)}", embed=embed)
 
-
-# Player system
+# Player system/Currency MAIN
 @bot.command()
+async def shop(ctx):
+    with open("item_database.json") as file:
+        data = json.load(file)
+
+    items = {}
+    for item, info in data.items():
+        if info["valid"]:
+            information = await get_item(item)
+            try:
+                items[information["category"]].append({"name": information["name"], "desc": information["description"], "category": string.capwords(information["type"])+", "+string.capwords(information["slot"]), "emoji": information["emoji"], "cost": information["data"]["cost"]})
+            except KeyError:
+                items[information["category"]] = [{"name": information["name"], "desc": information["description"], "category": string.capwords(information["type"])+", "+string.capwords(information["slot"]), "emoji": information["emoji"], "cost": information["data"]["cost"]}]
+
+    select_options = []
+    embeds = {}
+
+    for category, item_list in items.items():
+        cat_info = await get_category_desc(category)
+        select_options.append(discord.SelectOption(label=cat_info["name"], description=cat_info["description"], emoji=cat_info["emoji"]))
+        embeds.update({cat_info['name']: []})
+        page_count = 0
+        split_pages = baintools.split_page(item_list, 5)
+        for items_in_page in split_pages:
+            # Returns the list of pages. Do stuff every page.
+            description = ""
+            for item in items_in_page:
+                # For every item in the page. Do stuff every item.
+                description += f"{item['emoji']} **{item['name']}** ({item['category']})\n*{item['desc']}*\n${'{:,}'.format(item['cost'])}\n\n"
+            embed = discord.Embed(title=f"CRIME.NET/Blackmarket/{cat_info['name']}", description=description, colour=discord.Colour.blurple()).set_footer(text=f"Page {page_count+1}/{len(split_pages)}")
+            embeds[cat_info['name']].append(embed)
+            page_count += 1
+
+    class Storage:
+        def __init__(self):
+            self.page = 1
+            self.opened = False
+
+    storage = Storage()
+
+    button_prev = Button(label="⏪ Prev.", style=discord.ButtonStyle.blurple)
+    button_next = Button(label="⏩ Next", style=discord.ButtonStyle.blurple)
+    button_jump = Button(label="Jump...", style=discord.ButtonStyle.gray)
+
+    modal = Modal(title="Blackmarket: Jump to...")
+    modal_field = InputText(label="Page Number", style=discord.InputTextStyle.short)
+    modal.add_item(modal_field)
+
+    async def modal_callback(interaction):
+        if interaction.user == ctx.author:
+            try:
+                await interaction.response.edit_message(embed=embeds[select.values[0]][int(modal.children[0].value)-1])
+            except (TypeError, IndexError, ValueError) as error_msg:
+                await interaction.response.send_message(content=f"Input something valid.\n`{error_msg}`", ephemeral=True)
+
+    modal.callback = modal_callback
+
+    async def button_jump_callback(interaction: discord.Interaction):
+        if interaction.user == ctx.author:
+            await interaction.response.send_modal(modal)
+
+    async def button_prev_callback(interaction):
+        if interaction.user == ctx.author:
+            if storage.page == 1:
+                await interaction.response.defer()
+                await interaction.followup.send(content="It's already the first page!", ephemeral=True, wait=True)
+            else:
+                storage.page -= 1
+                new_embed = embeds[select.values[0]][storage.page-1]
+                await interaction.response.edit_message(embed=new_embed)
+
+    async def button_next_callback(interaction):
+        if interaction.user == ctx.author:
+            length_of_cat = len(embeds[select.values[0]])
+            if storage.page == length_of_cat:
+                await interaction.response.defer()
+                await interaction.followup.send(content="It's already the last page!", ephemeral=True, wait=True)
+            else:
+                storage.page += 1
+                new_embed = embeds[select.values[0]][storage.page - 1]
+                await interaction.response.edit_message(embed=new_embed)
+
+    select = Select(placeholder="Select a category...", options=select_options)
+
+    async def select_callback(interaction: discord.Interaction):
+        if interaction.user == ctx.author:
+            if not storage.opened:
+                view.add_item(button_prev)
+                view.add_item(button_next)
+                view.add_item(button_jump)
+                storage.opened = True
+            await interaction.response.edit_message(embed=embeds[select.values[0]][0], view=view)
+
+    select.callback = select_callback
+    button_prev.callback = button_prev_callback
+    button_next.callback = button_next_callback
+    button_jump.callback = button_jump_callback
+
+    view = View()
+    view.add_item(select)
+    await ctx.reply(embed=discord.Embed(title="CRIME.NET/Blackmarket/Home_Page", description="Select a category below to get started!", colour=discord.Color.blurple()), view=view)
+
+@bot.command()
+async def heist(ctx, *_contract_name: str):
+    await player_create(ctx, ctx.author.id)
+    _contract = " ".join(_contract_name)
+    if len(_contract_name) == 0 or _contract not in baintools.heist_list:
+        await throw_crimenet_error(ctx, 200, note="Invalid job.")
+    data = {}
+    diff_select_view = View()
+    difficulty_select = baintools.difficulty_select
+    difficulty_od_select = baintools.difficulty_od_select
+    button_confirm = baintools.difficulty_finish
+    button_cancel = baintools.difficulty_cancel
+
+    async def select_callback(interaction):
+        if interaction.user == ctx.author:
+            await interaction.response.defer()
+
+    async def confirm_callback(interaction):
+        if interaction.user == ctx.author:
+            await interaction.message.delete()
+            await interaction.response.defer()
+            try:
+                data["difficulty"] = difficulty_select.values[0]
+            except IndexError:
+                data["difficulty"] = "normal"
+            try:
+                data["od"] = True if difficulty_od_select.values[0] == "True" else False
+            except IndexError:
+                data["od"] = False
+
+            await getattr(PlayerHeist(), baintools.heist_autocorrect(_contract))(ctx=ctx,
+                                                                                          difficulty=data["difficulty"],
+                                                                                          od=data["od"])
+
+    async def cancel_callback(interaction):
+        if interaction.user == ctx.author:
+            await interaction.response.edit_message(content=None, view=None,
+                                                    embed=discord.Embed(title="CRIME.NET/Contract Broker",
+                                                                        description="Cancelled.",
+                                                                        colour=discord.Color.blurple()))
+
+    difficulty_select.callback = select_callback
+    difficulty_od_select.callback = select_callback
+    button_confirm.callback = confirm_callback
+    button_cancel.callback = cancel_callback
+
+    diff_select_view.add_item(difficulty_select)
+    diff_select_view.add_item(difficulty_od_select)
+    diff_select_view.add_item(button_confirm)
+    diff_select_view.add_item(button_cancel)
+
+    embed = discord.Embed(title="CRIME.NET/Contract Broker", description="Select a difficulty.",
+                          colour=discord.Colour.blurple())
+
+    await ctx.reply(content=None, embed=embed, view=diff_select_view)
+
+# Player system/Profile
+@bot.command(name="profile")
 async def profile(ctx, user: discord.Member = None):
     if user is None:
         user = ctx.author
@@ -1755,64 +1911,6 @@ async def _customize_weapon(ctx, *weapon_name):
 async def _customize_weapon_revoke_wp(ctx, *args):
     await ctx.invoke(_customize_weapon, *args)
 
-# Player system/Currency MAIN
-@bot.command()
-async def heist(ctx, *_contract_name: str):
-    await player_create(ctx, ctx.author.id)
-    _contract = " ".join(_contract_name)
-    if len(_contract_name) == 0 or _contract not in baintools.heist_list:
-        await throw_crimenet_error(ctx, 200, note="Invalid job.")
-    data = {}
-    diff_select_view = View()
-    difficulty_select = baintools.difficulty_select
-    difficulty_od_select = baintools.difficulty_od_select
-    button_confirm = baintools.difficulty_finish
-    button_cancel = baintools.difficulty_cancel
-
-    async def select_callback(interaction):
-        if interaction.user == ctx.author:
-            await interaction.response.defer()
-
-    async def confirm_callback(interaction):
-        if interaction.user == ctx.author:
-            await interaction.message.delete()
-            await interaction.response.defer()
-            try:
-                data["difficulty"] = difficulty_select.values[0]
-            except IndexError:
-                data["difficulty"] = "normal"
-            try:
-                data["od"] = True if difficulty_od_select.values[0] == "True" else False
-            except IndexError:
-                data["od"] = False
-
-            await getattr(PlayerHeist(), baintools.heist_autocorrect(_contract))(ctx=ctx,
-                                                                                          difficulty=data["difficulty"],
-                                                                                          od=data["od"])
-
-    async def cancel_callback(interaction):
-        if interaction.user == ctx.author:
-            await interaction.response.edit_message(content=None, view=None,
-                                                    embed=discord.Embed(title="CRIME.NET/Contract Broker",
-                                                                        description="Cancelled.",
-                                                                        colour=discord.Color.blurple()))
-
-    difficulty_select.callback = select_callback
-    difficulty_od_select.callback = select_callback
-    button_confirm.callback = confirm_callback
-    button_cancel.callback = cancel_callback
-
-    diff_select_view.add_item(difficulty_select)
-    diff_select_view.add_item(difficulty_od_select)
-    diff_select_view.add_item(button_confirm)
-    diff_select_view.add_item(button_cancel)
-
-    embed = discord.Embed(title="CRIME.NET/Contract Broker", description="Select a difficulty.",
-                          colour=discord.Colour.blurple())
-
-    await ctx.reply(content=None, embed=embed, view=diff_select_view)
-
-# Player system/Currency PROFILE
 @bot.command()
 async def inventory(ctx, user: discord.Member = None):
     await player_create(ctx, ctx.author.id)
@@ -1848,11 +1946,12 @@ async def inventory(ctx, user: discord.Member = None):
     select = Select(placeholder="Select a category...", options=select_options)
 
     async def select_callback(interaction):
-        designated_embed = None
-        for i in embeds:
-            if i.description.startswith(f"**Inventory/{select.values[0]}"):
-                designated_embed = embed
-        await interaction.response.edit_message(embed=designated_embed)
+        if interaction.user == ctx.author:
+            designated_embed = None
+            for i in embeds:
+                if i.description.startswith(f"**Inventory/{select.values[0]}"):
+                    designated_embed = embed
+            await interaction.response.edit_message(embed=designated_embed)
 
     select.callback = select_callback
     view = View()
@@ -1869,7 +1968,25 @@ async def inventory_invoke_inv(ctx, user: discord.Member = None):
 @bot.command()
 async def balance(ctx, user: discord.Member = None):
     await player_create(ctx, ctx.author.id)
-    data = await player_database()
+    if user is None:
+        user = ctx.author
+    data = (await player_database())[str(user.id)]
+    cash = data['cash']
+    offshore = data['offshore']
+    item_worth = 0
+    for attr, val in data.items():
+        try:
+            if val >= 1:
+                item_worth += (await get_item(attr))["data"]["cost"]
+        except (KeyError, TypeError):
+            pass
+
+    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${'{:,}'.format(cash)}\n**Offshore Account:** ${'{:,}'.format(offshore)} [Total: ${'{:,}'.format(cash+offshore)}]\n**Item Worth:** ${'{:,}'.format(item_worth)}\n\n**Net Worth:** ${'{:,}'.format(cash+offshore+item_worth)}", colour=discord.Colour.blurple())
+    await ctx.reply(content=None, embed=embed)
+
+@bot.command(name="bal")
+async def balance_invoke_bal(ctx, user: discord.Member = None):
+    await ctx.invoke(balance, user)
 
 # Player system/Casual
 @bot.command()

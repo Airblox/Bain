@@ -1,7 +1,12 @@
 {
   "weapon": {
-    "name": "Weapon",
-    "description": "Weapons that a player own.",
+    "name": "Weapons",
+    "description": "Tools for the trade. Mostly guns.",
     "emoji": "<:amcar_old:1030490962490839051>"
+  },
+  "weapon mod": {
+    "name": "Weapon Mods",
+    "description": "Attachments for weapons.",
+    "emoji": "<:low_profile_suppressor:1031142434052243506>"
   }
 }

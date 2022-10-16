@@ -14,6 +14,16 @@ def snake_case(s):
             sub('([A-Z]+)', r' \1',
                 s.replace('-', ' '))).split()).lower()
 
+def split_page(_t, _i):
+    res = []
+    cur_res = []
+    while len(_t):
+        for item, count in zip(_t, range(_i)):
+            cur_res.append(item)
+        _t = _t[_i:]
+        res.append(cur_res)
+        cur_res = []
+    return res
 
 def to_roman(number: int):
     result = ""
