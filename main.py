@@ -1693,6 +1693,7 @@ async def _gen_inv(ctx, id: int):
 # Player system/Currency MAIN
 @bot.command()
 async def shop(ctx):
+    await player_create(ctx, ctx.author.id)
     with open("item_database.json") as file:
         data = json.load(file)
 
@@ -1794,11 +1795,40 @@ async def shop(ctx):
     await ctx.reply(embed=discord.Embed(title="CRIME.NET/Blackmarket/Home_Page", description="Select a category below to get started!", colour=discord.Color.blurple()), view=view)
 
 @bot.command()
+async def inspect(ctx, *item_name):
+    await player_create(ctx, ctx.author.id)
+
+    item = " ".join(item_name) if len(item_name) > 0 else None
+
+    item = baintools.item_autocorrect(item, True) if item is not None else None
+    player = (await player_database())[str(ctx.author.id)]
+    if item is None:
+        await throw_crimenet_error(ctx, 400, "Invalid weapon.")
+    else:
+        data = await get_item(item)
+        description = f"**({'{:,}'.format(player[item])} owned)**\n{data['description']}\n\n**Category:** {(await get_category_desc(data['category']))['name']} - {data['type']}, {string.capwords(data['slot'])}\n"
+
+        special_list_str = f"{list(data['data'].values())[0][0]} ({', '.join(list(data['data'].values())[0][1:])})\n\n"
+        cost_str = f"\nCosts **${'{:,}'.format(data['data']['cost'])}**."
+
+        attr_str = ""
+        for attr, val in data['data'].items():
+            if type(val) != list and attr != "cost":
+                attr_str += f"**{string.capwords(attr.replace('_', ' ')).replace('Rate Of Fire', 'Rate of Fire').replace('Reload', 'Reload Time (seconds)')}:** {'**'+'{:,}'.format(val)+'**' if val is not None else '-'}\n"
+
+        description += special_list_str
+        description += attr_str
+        description += cost_str
+
+        embed = discord.Embed(title=data["name"], description=description, colour=discord.Colour.blurple()).set_thumbnail(url=data["image_link"])
+        await ctx.reply(embed=embed)
+
+@bot.command()
 async def heist(ctx, *_contract_name: str):
     await player_create(ctx, ctx.author.id)
     _contract = " ".join(_contract_name)
     if len(_contract_name) == 0 or _contract not in baintools.heist_list:
-        await throw_crimenet_error(ctx, 200, note="Invalid job.")
+        await throw_crimenet_error(ctx, 400, note="Invalid job.")
     data = {}
     diff_select_view = View()
     difficulty_select = baintools.difficulty_select
@@ -1898,14 +1928,14 @@ async def _customize_weapon(ctx, *weapon_name):
     try:
         await get_item("w_" + "_".join(weapon_name).lower().replace(".", ""))
     except KeyError:
-        await throw_crimenet_error(ctx, 200, note="Weapon doesn't exist.")
+        await throw_crimenet_error(ctx, 400, note="Weapon doesn't exist.")
     else:
         data = await player_database()
         if data[str(ctx.author.id)]["w_" + "_".join(weapon_name)] > 0:
             await player_setattr(str(ctx.author.id), "weapon", "w_" + "_".join(weapon_name).lower().replace(".", ""))
             await ctx.reply(embed=discord.Embed(title="CRIME.NET/Profile", description=f"Successfully changed your signature weapon to `{(await get_item('w_' + ' '.join(weapon_name)))['name']}`.", colour=discord.Colour.blurple()).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/7/73/AMCAR-icon.png/revision/latest/scale-to-width-down/200?cb=20130806182054"))
         else:
-            await throw_crimenet_error(ctx, 200, note="You don't own this weapon.")
+            await throw_crimenet_error(ctx, 400, note="You don't own this weapon.")
 
 @_customize.command(name="wp")
 async def _customize_weapon_revoke_wp(ctx, *args):
@@ -1994,10 +2024,10 @@ async def bet(ctx, amount: int = 1000):
     await player_create(ctx, ctx.author.id)
     cash_amt = (await player_database())[str(ctx.author.id)]['cash']
     if amount > cash_amt:
-        await throw_crimenet_error(ctx, 200, note="You don't enough money.")
+        await throw_crimenet_error(ctx, 400, note="You don't enough money.")
         return
     elif amount < 1000:
-        await throw_crimenet_error(ctx, 200, note="You need to bet at least $1,000.")
+        await throw_crimenet_error(ctx, 400, note="You need to bet at least $1,000.")
         return
     bain_bet = random.randint(1, 15)
     player_bet = random.randint(1, 15)
@@ -2227,7 +2257,7 @@ async def dictsearch(arg):
 # CRIME.NET custom embed errors
 async def throw_crimenet_error(ctx: commands.Context, err_code: int = 404, note: str = None):
     guide = {
-        200: "Bad request. Try passing some valid arguments?",
+        400: "Bad request. Try passing some valid arguments?",
         404: "Not found. Try using a valid command?"
     }
     embed = discord.Embed(title=f"CRIME.NET/Error/{err_code}", description=guide[err_code], colour=discord.Colour.red())

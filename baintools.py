@@ -8,11 +8,15 @@ from discord import SelectOption
 from re import sub
 
 
+item_prefixes = ["w", "wmod"]
+
+
 def snake_case(s):
     return '_'.join(
         sub('([A-Z][a-z]+)', r' \1',
             sub('([A-Z]+)', r' \1',
                 s.replace('-', ' '))).split()).lower()
+
 
 def split_page(_t, _i):
     res = []
@@ -24,6 +28,7 @@ def split_page(_t, _i):
         res.append(cur_res)
         cur_res = []
     return res
+
 
 def to_roman(number: int):
     result = ""
@@ -76,6 +81,27 @@ def generate_transaction_id(length: int = 20):
 def heist_autocorrect(_contract: str):
     return snake_case(_contract).replace("'", "").replace("í", "i")
 
+
+def item_autocorrect(_item: str, prefix: bool = True):
+    global item_prefixes
+    item = _item.replace(".", "").replace(" ", "").replace("_", "").replace("'", "").lower()
+    with open("item_database.json") as file:
+        data = json.load(file)
+
+    if prefix:
+        prefix = ""
+        for i in item_prefixes:
+            try:
+                data[i + "_" + item]
+            except KeyError:
+                pass
+            else:
+                prefix = i
+                break
+
+        return str(prefix+"_"+item)
+    else:
+        return item
 
 async def player_heist_end(*, user_id: str, heist: str, loot: int, success: bool, difficulty: str = "normal"):
     async def player_database():
