@@ -166,7 +166,16 @@ emojis = {
     "diff_mayhem": "<:mayhem_skull:1029041319638732813>",
     "diff_death_wish": "<:dw_skull:1029041359618834442>",
     "diff_death_sentence": "<:ds_skull:1029041401406685245>",
-    "diff_od": "<:one_down:1029041082257899560>"
+    "diff_od": "<:one_down:1029041082257899560>",
+
+    "amcar": "<:amcar:1032610038226890812>",
+    "ak": "<:ak:1032610040462454845>",
+    "car4": "<:car4:1032610042865778728>",
+    "uar": "<:uar:1032610044648357918>",
+    "ak762": "<:ak762:1032610046636470302>",
+
+    "chimano88": "<:chimano_88:1032610049006239744>",
+    "crosskill": "<:crosskill:1032610050717519892>"
 }
 difficulty_select = Select(placeholder="Select a difficulty...", options=[
     SelectOption(label="Normal", emoji=emojis["diff_skull"], value="normal"),
@@ -213,6 +222,9 @@ class PlayerInfo:
         # Secondary Weapons
         "w_chimano88": 1,
         "w_crosskill": 0,
+
+        # Weapon Mods
+        "wmod_lowprofilesuppressor":0,
 
         # Heists
         "heist_stat_success": 0,

@@ -653,6 +653,7 @@ async def addrole(ctx, *role_name):
     addrole_cancel_button.callback = addrole_cancel_button_callback
 
     addrole_view = View()
+    addrole_view.disable_on_timeout = True
     addrole_view.add_item(addrole_perms_select)
     addrole_view.add_item(addrole_perms_adv_select)
     addrole_view.add_item(addrole_confirm_button)
@@ -676,6 +677,7 @@ async def delrole(ctx, *args):
     delrole_cancel = Button(label="Cancel", style=discord.ButtonStyle.blurple)
 
     delrole_view = View()
+    delrole_view.disable_on_timeout = True
     delrole_view.add_item(delrole_confirm)
     delrole_view.add_item(delrole_cancel)
 
@@ -735,6 +737,7 @@ async def invite(ctx):
 
     revoke_invite.callback = revoke_invite_callback
     invite_view = View()
+    invite_view.disable_on_timeout = True
     invite_view.add_item(show_button)
     invite_view.add_item(revoke_invite)
     await original.edit("Click the button to show the link!", view=invite_view)
@@ -759,7 +762,6 @@ async def ping(ctx):
     )
     await ctx.reply(embed=pingembed)
 
-
 @bot.command(name="wiki")
 async def wikipedia(ctx, *args):
     search_keyword = " ".join(args)
@@ -773,13 +775,13 @@ async def wikipedia(ctx, *args):
         search_url_button = Button(label=f"Read more about {wikisummary(search_keyword)[2]} on Wikipedia",
                                    url=f"{search_url_link}")
         search_view = View()
+        search_view.disable_on_timeout = True
         search_view.add_item(search_url_button)
         await search_wait.edit(content=None, embed=search_embed, view=search_view)
     except PageError:
         await search_wait.edit(content=f"No results for \"{search_keyword}\".")
     except DisambiguationError as disamb_e:
         await search_wait.edit(f"**Disambiguation:** {disamb_e}")
-
 
 @bot.command()
 async def define(ctx, *args):
@@ -831,10 +833,10 @@ async def define(ctx, *args):
 
             button.callback = buttoncall
         view = View()
+        view.disable_on_timeout = True
         view.add_item(button)
 
         await ctx.reply(content=None, embed=embed, view=view)
-
 
 @bot.command()
 async def poll(ctx, name, *args):
@@ -925,7 +927,6 @@ async def poll(ctx, name, *args):
 
     await ctx.reply(content=None, embed=poll_embed, view=poll_view)
 
-
 @bot.command(name="8ball")
 async def _8ball(ctx, *args):
     if len(args) != 0:
@@ -954,16 +955,13 @@ async def _8ball(ctx, *args):
     else:
         raise Exception("arg is a required argument that is missing.")
 
-
 @bot.command(name="random")
 async def _random(ctx, *numbers):
     numbers = [int(i.replace(" ", "")) for i in " ".join(numbers).split(",")]
     embed = discord.Embed(title="CRIME.NET/Random Number Generator", colour=discord.Colour.blurple())
-    embed.add_field(name="Result", value=str(random.randint(*numbers)), inline=False)
-    embed.set_footer(
-        text=f"Lower limit: {numbers[0]}; Upper limit: {numbers[1]}; Processing ID: {baintools.generate_transaction_id(10)}")
+    embed.add_field(name="Result", value="{:,}".format(random.randint(*numbers)), inline=False)
+    embed.set_footer(text=f"Lower limit: {'{:,}'.format(numbers[0])}; Upper limit: {'{:,}'.format(numbers[1])}\nProcessing ID: {baintools.generate_transaction_id(10)}")
     await ctx.reply(content=None, embed=embed)
-
 
 # Trolling
 @bot.command()
@@ -1013,49 +1011,44 @@ async def _tryitandsee(ctx, user: discord.Member = None):
 
 
 @bot.command()
-async def kill(ctx, *args):
-    arg = " ".join(args)
-    if len(args) != 0:
-        if arg == "me":
-            await ctx.send(f"You've committed suicide. Welcome to The Bad Place.")
-        elif arg == "Bain" or arg == "bain" or arg == secrets["bain_id"]:
-            await ctx.send(
-                f"You're the dentist. How dare you. I'll get Locke to rescue me, and you'll wait for my revenge!")
-        else:
-            quotenumber = random.randint(1, 12)
-            if quotenumber == 1:
-                quotenumber = "a pair of electrical brass knuckles. Get a tazed of your own medicine!"
-            elif quotenumber == 3:
-                quotenumber = "a silent OVE9000 saw. Man it would be better if they used the saw to open deposit boxes instead. What a waste of ammo."
-            elif quotenumber == 4:
-                quotenumber = "two STRYk 18c pistols. Oof!"
-            elif quotenumber == 6:
-                quotenumber = "an AMCAR rifle, an AK rifle, a CAR-4 rifle, an UAR, an AK .762, a JP36, a... God forbid... a forking GALANT? I mean seriously, you don't need to get so many guns to kill this guy."
-            elif quotenumber == 7:
-                quotenumber = "Razormind music. Credits to Simon Viklund. But for now, give them hell... (*police assault starts*)"
-            elif quotenumber == 8:
-                quotenumber = f"an FN Five-seveN pistol, loaded with a magazine filled with 19 AP rounds, as well as one extra cartridge in the chamber. {arg} was wearing Kevlar, but it had no use."
-            elif quotenumber == 9:
-                quotenumber = f"oh my- what the hEll, ice? {ctx.author.mention} killed him with intracellular ice. *Shivers...*"
-            elif quotenumber == 10:
-                quotenumber = f"oh wait, {ctx.author.mention} couldn't kill him. John Wick killed him with the Contractor .308 Sniper Rifle instead. A revolver-holding cop saw {ctx.author.mention} drawing out his weapon so he arrested him. *Presses F to pay respects...*"
-            elif quotenumber == 11:
-                quotenumber = f"a pair of boxing gloves, lol. Completely overkill."
-            elif quotenumber == 12:
-                quotenumber = f"a cup of lemon tea. {arg} was allergic to lemon tea (yes, what the heck, man)!"
-
-            if quotenumber == 2 or quotenumber == 5:
-                await ctx.send(
-                    f"{ctx.message.author.mention} tried to kill {arg}, but got arrested by the FBI for concealed "
-                    f"carry. You're probably gonna be the next Hoxton, who'll need to be broken out by "
-                    f"blasting C4 in the wall, going through a parking lot, and going to the FBI Headquarters "
-                    f"and go under a full-style SWAT, FBI, and DHS assault just to find out who ratted you "
-                    f"out!")
-            else:
-                await ctx.send(
-                    f"<:glock_17:966176633398644757> {ctx.message.author.mention} killed {arg} with {quotenumber}")
+async def kill(ctx, arg: discord.Member):
+    if arg == "me":
+        await ctx.send(f"You've committed suicide. Welcome to The Bad Place.")
+    elif arg == "Bain" or arg == "bain" or arg == secrets["bain_id"]:
+        await ctx.send(
+            f"You're the dentist. How dare you. I'll get Locke to rescue me, and you'll wait for my revenge!")
     else:
-        raise Exception("arg is a required argument that is missing.")
+        quotenumber = random.randint(1, 12)
+        if quotenumber == 1:
+            quotenumber = "a pair of electrical brass knuckles. Get a tazed of your own medicine!"
+        elif quotenumber == 3:
+            quotenumber = "a silent OVE9000 saw. Man it would be better if they used the saw to open deposit boxes instead. What a waste of ammo."
+        elif quotenumber == 4:
+            quotenumber = "two STRYk 18c pistols. Oof!"
+        elif quotenumber == 6:
+            quotenumber = "an AMCAR rifle, an AK rifle, a CAR-4 rifle, an UAR, an AK .762, a JP36, a... God forbid... a forking GALANT? I mean seriously, you don't need to get so many guns to kill this guy."
+        elif quotenumber == 7:
+            quotenumber = "Razormind music. Credits to Simon Viklund. But for now, give them hell... (*police assault starts*)"
+        elif quotenumber == 8:
+            quotenumber = f"an FN Five-seveN pistol, loaded with a magazine filled with 19 AP rounds, as well as one extra cartridge in the chamber. {arg} was wearing Kevlar, but it had no use."
+        elif quotenumber == 9:
+            quotenumber = f"oh my- what the hEll, ice? {ctx.author.mention} killed him with intracellular ice. *Shivers...*"
+        elif quotenumber == 10:
+            quotenumber = f"oh wait, {ctx.author.mention} couldn't kill him. John Wick killed him with the Contractor .308 Sniper Rifle instead. A revolver-holding cop saw {ctx.author.mention} drawing out his weapon so he arrested him. *Presses F to pay respects...*"
+        elif quotenumber == 11:
+            quotenumber = f"a pair of boxing gloves, lol. Completely overkill."
+        elif quotenumber == 12:
+            quotenumber = f"a cup of lemon tea. {arg} was allergic to lemon tea (yes, what the heck, man)!"
+
+        if quotenumber == 2 or quotenumber == 5:
+            await ctx.send(
+                f"{ctx.message.author.mention} tried to kill {arg}, but got arrested by the FBI for concealed "
+                f"carry. You're probably gonna be the next Hoxton, who'll need to be broken out by "
+                f"blasting C4 in the wall, going through a parking lot, and going to the FBI Headquarters "
+                f"and go under a full-style SWAT, FBI, and DHS assault just to find out who ratted you "
+                f"out!")
+        else:
+            await ctx.send(f"<:glock_17:966176633398644757> {ctx.message.author.mention} killed {arg} with {quotenumber}")
 
 
 @bot.command()
@@ -1390,6 +1383,7 @@ async def hack(ctx, user: discord.Member):
 
             correct_button = random.randint(0, 4)
             flash_hack_view = View()
+            flash_hack_view.disable_on_timeout = True
             for i in range(5):
                 if correct_button == i:
                     newbutton = Button(label="😀")
@@ -1538,6 +1532,7 @@ async def hack(ctx, user: discord.Member):
     hack_pc.callback = hack_pc_callback
 
     hack_view = View()
+    hack_view.disable_on_timeout = True
     hack_view.add_item(hack_bank)
     hack_view.add_item(hack_id)
     hack_view.add_item(hack_pc)
@@ -1551,8 +1546,8 @@ async def rickroll(ctx, user: discord.Member = None):
     embed = discord.Embed(title=":)", description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message... Teehee!", colour=discord.Color.blurple())
     embed.set_image(url="https://media.tenor.com/_4YgA77ExHEAAAAd/rick-roll.gif")
 
-    await ctx.message.delete()
     await ctx.reply(content=f"{user.mention}:" if user != ctx.author else None, embed=embed)
+    await ctx.message.delete()
 
 # Voice
 @bot.command()
@@ -1721,7 +1716,7 @@ async def shop(ctx):
             for item in items_in_page:
                 # For every item in the page. Do stuff every item.
                 description += f"{item['emoji']} **{item['name']}** ({item['category']})\n*{item['desc']}*\n${'{:,}'.format(item['cost'])}\n\n"
-            embed = discord.Embed(title=f"CRIME.NET/Blackmarket/{cat_info['name']}", description=description, colour=discord.Colour.blurple()).set_footer(text=f"Page {page_count+1}/{len(split_pages)}")
+            embed = discord.Embed(title=f"CRIME.NET/Blackmarket/{cat_info['name']}", description=f"_Use `{bot.command_prefix}item` for more information about an item._\n\n"+description, colour=discord.Colour.blurple()).set_footer(text=f"Page {page_count+1}/{len(split_pages)}")
             embeds[cat_info['name']].append(embed)
             page_count += 1
 
@@ -1791,8 +1786,9 @@ async def shop(ctx):
     button_jump.callback = button_jump_callback
 
     view = View()
+    view.disable_on_timeout = True
     view.add_item(select)
-    await ctx.reply(embed=discord.Embed(title="CRIME.NET/Blackmarket/Home_Page", description="Select a category below to get started!", colour=discord.Color.blurple()), view=view)
+    await ctx.reply(embed=discord.Embed(title="CRIME.NET/Blackmarket/Home_Page", description="Select a category below to get started!\n"+f"_Use `{bot.command_prefix}item` for more information about an item._", colour=discord.Color.blurple()), view=view)
 
 @bot.command()
 async def inspect(ctx, *item_name):
@@ -1808,7 +1804,7 @@ async def inspect(ctx, *item_name):
         data = await get_item(item)
         description = f"**({'{:,}'.format(player[item])} owned)**\n{data['description']}\n\n**Category:** {(await get_category_desc(data['category']))['name']} - {data['type']}, {string.capwords(data['slot'])}\n"
 
-        special_list_str = f"{list(data['data'].values())[0][0]} ({', '.join(list(data['data'].values())[0][1:])})\n\n"
+        special_list_str = f"**{string.capwords(list(data['data'].keys())[0])}:** {list(data['data'].values())[0][0]} ({', '.join(list(data['data'].values())[0][1:])})\n\n"
         cost_str = f"\nCosts **${'{:,}'.format(data['data']['cost'])}**."
 
         attr_str = ""
@@ -1823,6 +1819,10 @@ async def inspect(ctx, *item_name):
         embed = discord.Embed(title=data["name"], description=description, colour=discord.Colour.blurple()).set_thumbnail(url=data["image_link"])
         await ctx.reply(embed=embed)
 
+@bot.command(name="item")
+async def inspect_revoke_item(ctx, *item_name):
+    await ctx.invoke(inspect, *item_name)
+
 @bot.command()
 async def heist(ctx, *_contract_name: str):
     await player_create(ctx, ctx.author.id)
@@ -1831,6 +1831,7 @@ async def heist(ctx, *_contract_name: str):
         await throw_crimenet_error(ctx, 400, note="Invalid job.")
     data = {}
     diff_select_view = View()
+    diff_select_view.disable_on_timeout = True
     difficulty_select = baintools.difficulty_select
     difficulty_od_select = baintools.difficulty_od_select
     button_confirm = baintools.difficulty_finish
@@ -1985,6 +1986,7 @@ async def inventory(ctx, user: discord.Member = None):
 
     select.callback = select_callback
     view = View()
+    view.disable_on_timeout = True
     view.add_item(select)
 
     await ctx.reply(embed=embeds[0], view=view)
@@ -2116,36 +2118,16 @@ async def scout(ctx):
             users[str(user.id)]["cash"] += earnings
             await player_save(users)
 
-    b1.callback = call
-    b2.callback = call
-    b3.callback = call
-    b4.callback = call
-    b5.callback = call
-    b6.callback = call
-    b7.callback = call
-    b8.callback = call
-    b9.callback = call
-    b10.callback = call
-    b11.callback = call
-    b12.callback = call
-    b13.callback = call
-    b14.callback = call
-    b15.callback = call
-    b16.callback = call
-    b17.callback = call
-    b18.callback = call
-    b19.callback = call
-    b20.callback = call
-    b21.callback = call
-    b22.callback = call
-    b23.callback = call
-    b24.callback = call
-
     buttons = [b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23,
                b24]
+
+    for i in buttons:
+        i.callback = call
+
     buttons_ran = random.sample(buttons, 4)
 
     view = View()
+    view.disable_on_timeout = True
     for i in range(4):
         view.add_item(buttons_ran[i])
 
@@ -2187,6 +2169,7 @@ async def player_create(ctx, user_id: int):
             button.callback = button_callback
             clear_button.callback = clear_callback
             view = View()
+            view.disable_on_timeout = True
             view.add_item(button)
             view.add_item(clear_button)
 

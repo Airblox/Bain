@@ -1,3 +1,11 @@
 To add a new heist, please make sure you have:
 - Added a coroutine function to baintools.PlayerHeist
 - Added a save copy to heist_rewards_database.json
+
+To add a new item, please make sure you have:
+- Added the item to baintools.PlayerInfo.player_objects
+- Added the item to existing player slots through _console.py
+- Added the item to item_database.json
+
+To add a new category, please make sure you have:
+- Added the category to category_desc_database.json
