@@ -89,17 +89,17 @@ def item_autocorrect(_item: str, prefix: bool = True):
         data = json.load(file)
 
     if prefix:
-        prefix = ""
+        _prefix = ""
         for i in item_prefixes:
             try:
                 data[i + "_" + item]
             except KeyError:
                 pass
             else:
-                prefix = i
+                _prefix = i
                 break
 
-        return str(prefix+"_"+item)
+        return str(_prefix+"_"+item)
     else:
         return item
 

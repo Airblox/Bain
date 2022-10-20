@@ -452,7 +452,7 @@ async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=N
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def unban(ctx, user: discord.User = None, reason=None):
-    if user == None:
+    if user is None:
         await ctx.reply("Specify a user.")
     else:
         await ctx.guild.unban(user=user, reason=reason)
@@ -829,7 +829,7 @@ async def define(ctx, *args):
             button = Button(label="No source URLs found.", style=discord.ButtonStyle.secondary)
 
             async def buttoncall(interaction):
-                pass
+                await interaction.response.defer()
 
             button.callback = buttoncall
         view = View()
@@ -881,7 +881,6 @@ async def poll(ctx, name, *args):
             count_list = castedvotes.values()
             counted_dict = Counter(count_list)
             prepared_poll = ""
-            winning = ""
             try:
                 winning = str(max(counted_dict))
             except ValueError:
@@ -1685,6 +1684,15 @@ async def _gen_inv(ctx, id: int):
     dm = await user.create_dm()
     await dm.send(content=f"{str(channel.url)}", embed=embed)
 
+@bot.command(name="_commands")
+@commands.is_owner()
+async def _commands(ctx):
+    pages = baintools.split_page([i.name for i in bot.commands], 5)
+    for i in pages:
+        await ctx.reply(i)
+
+    await ctx.reply("end")
+
 # Player system/Currency MAIN
 @bot.command()
 async def shop(ctx):
@@ -1818,6 +1826,94 @@ async def inspect(ctx, *item_name):
 
         embed = discord.Embed(title=data["name"], description=description, colour=discord.Colour.blurple()).set_thumbnail(url=data["image_link"])
         await ctx.reply(embed=embed)
+
+@bot.command()
+async def buy(ctx, *args):
+    arguments = " ".join(args).split(",")
+    item = arguments[0]
+    try:
+        amount = int(arguments[1])
+    except IndexError:
+        amount = 1
+    await player_create(ctx, ctx.author.id)
+    data = await player_database()
+    key = baintools.item_autocorrect(item, True)
+
+    with open("item_database.json") as file:
+        items = json.load(file)
+    try:
+        items[key]["data"]["cost"]
+    except KeyError:
+        await throw_crimenet_error(ctx, 404, "Invalid item.")
+        return
+
+    cost = items[key]["data"]["cost"]
+
+    if data[str(ctx.author.id)]["cash"] >= cost:
+        if amount > 1:
+            embed = discord.Embed(title="Blackmarket",
+                                  description=f"Are you sure you want to buy {'{:,}'.format(amount)}x {items[key]['name']}?",
+                                  colour=discord.Colour.blurple()).set_thumbnail(url=items[key]["image_link"])
+            button_confirm = Button(label="Confirm", style=discord.ButtonStyle.blurple)
+            button_cancel = Button(label="Cancel", style=discord.ButtonStyle.red)
+
+            async def button_confirm_callback(interaction: discord.Interaction):
+                if interaction.user == ctx.author:
+                    await interaction.response.defer()
+                    data[str(ctx.author.id)]["cash"] -= cost
+                    data[str(ctx.author.id)][key] += amount
+                    await player_save(data)
+                    new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {'{:,}'.format(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${'{:,}'.format(items[key]['data']['cost']*amount)}", colour=discord.Color.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
+                    await interaction.followup.edit_message(message_id=interaction.message.id, embed=new_embed, view=None)
+
+            async def button_cancel_callback(interaction: discord.Interaction):
+                if interaction.user == ctx.author:
+                    await interaction.response.edit_message(content=None, embed=discord.Embed(title="Blackmarket/Transaction_Cancelled", description="Transaction has been cancelled.", colour=discord.Color.red()), view=None)
+
+            button_confirm.callback = button_confirm_callback
+            button_cancel.callback = button_cancel_callback
+            view = View()
+            view.disable_on_timeout = True
+            view.add_item(button_confirm)
+            view.add_item(button_cancel)
+
+            await ctx.reply(content=None, embed=embed, view=view)
+        elif amount == 1:
+            data[str(ctx.author.id)]["cash"] -= cost
+            data[str(ctx.author.id)][key] += amount
+            await player_save(data)
+            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {'{:,}'.format(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${'{:,}'.format(items[key]['data']['cost'])}", colour=discord.Colour.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
+            await ctx.reply(embed=new_embed, view=None)
+        else:
+            await throw_crimenet_error(ctx, 400, "Invalid amount.")
+    else:
+        await throw_crimenet_error(ctx, 400, "Insufficient cash.")
+
+@bot.command()
+async def sell(ctx, *args):
+    arguments = " ".join(args).split(",")
+    item = arguments[0]
+    try:
+        amount = int(arguments[1])
+    except IndexError:
+        amount = 1
+
+    await player_create(ctx, ctx.author.id)
+    data = await player_database()
+    key = baintools.item_autocorrect(item, True)
+
+    with open("item_database.json") as file:
+        items = json.load(file)
+    try:
+        items[key]["data"]["cost"]
+    except KeyError:
+        await throw_crimenet_error(ctx, 404, "Invalid item.")
+        return
+
+    cost = items[key]["data"]["cost"]
+    player = data[str(ctx.author.id)]
+
+    # Run checks for last items
 
 @bot.command(name="item")
 async def inspect_revoke_item(ctx, *item_name):
@@ -2243,8 +2339,7 @@ async def throw_crimenet_error(ctx: commands.Context, err_code: int = 404, note:
         400: "Bad request. Try passing some valid arguments?",
         404: "Not found. Try using a valid command?"
     }
-    embed = discord.Embed(title=f"CRIME.NET/Error/{err_code}", description=guide[err_code], colour=discord.Colour.red())
-    await ctx.reply(content=None if note is None else f"`{note}`", embed=discord.Embed(title=f"CRIME.NET/Error/{err_code}", description=guide[err_code], colour=discord.Colour.red()))
+    await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/Error/{err_code}", description=f"{guide[err_code]}\n{'_(No additional information given.)_' if note is None else f'`{note}`'}", colour=discord.Colour.red()))
 
 # .wiki command
 def wikisummary(arg):
