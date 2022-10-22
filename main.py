@@ -1900,9 +1900,6 @@ async def sell(ctx, *args):
                 if _amount >= 1:
                     secondary_amt += 1
 
-    print(primary_amt)
-    print(secondary_amt)
-
     if primary_amt - 1 == 0:
         if sell_data["slot"] == "primary":
             await throw_crimenet_error(ctx, 400, "You cannot sell your last primary weapon!")
