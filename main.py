@@ -39,8 +39,7 @@ def get_secrets():
 secrets = get_secrets()
 os.chdir(secrets["os_dir"])
 
-bot = commands.Bot(command_prefix=".", intents=discord.Intents.all(), owner_id=secrets["owner_id"],
-                   auto_sync_commands=True)
+bot = commands.Bot(command_prefix=".", intents=discord.Intents.all(), owner_id=secrets["owner_id"], auto_sync_commands=True)
 bot.remove_command("help")
 
 steam_api_key = secrets["steam_api_key"]
@@ -66,330 +65,169 @@ async def on_ready():
     print(f"(In {guild_count} servers in total.)")
 
 
-class HelpView(View):
-    def __init__(self, ctx):
-        super().__init__(timeout=180)
-        self.ctx = ctx
+@bot.command(name="help")
+async def help(ctx: commands.Context, command=None):
+    """___category__General___category__
+___parameters__None.___parameters__
+___description__Displays the help page."""
+    if command is None:
+        command_dict = {}
+        for i in list(bot.commands):
+            if i.callback.__doc__ is None:
+                docstr = "No description available currently."
+                category = "unknown"
+                parameters = "unknown"
+            else:
+                category = i.callback.__doc__.split("___category__")[1]
+                parameters = i.callback.__doc__.split("___parameters__")[1]
+                docstr = i.callback.__doc__.split("___description__")[1]
+            command_dict.update({i.name: {"description": i.description, "doc": docstr, "category": category, "parameters": parameters}})
 
-    @discord.ui.select(
-        max_values=1,
-        placeholder="Choose a category...",
-        options=[
-            discord.SelectOption(label="General", emoji="🎁", description="General commands, for fun!"),
-            discord.SelectOption(label="Currency - Page 1", emoji="💵",
-                                 description="Get money and earn your payday. Get rich!"),
-            discord.SelectOption(label="Currency - Page 2", emoji="💵",
-                                 description="Get money and earn your payday. Get rich!"),
-            discord.SelectOption(label="Tools", emoji="🛠", description="Useful (and unuseful) tools!"),
-            discord.SelectOption(label="Mathematics", emoji="🔢", description="Calculators & equation solvers!"),
-            discord.SelectOption(label="Moderation", emoji="📳",
-                                 description="Moderation commands! (Moderate members needed)"),
-            discord.SelectOption(label="Administration", emoji="🛡️",
-                                 description="Administration commands! (Administrator needed)")
-        ])
-    async def select_callback(self, select: discord.ui.Select, interaction):
-        embed = discord.Embed(
-            title="Help Section",
-            description='View all the available commands here. Separate parameters with commas. Wrap quotations around multi-word parameter (but don\'t put commas afterwards). Our prefix is ".".',
-            color=discord.Colour.green()
-        )
-        embed.set_thumbnail(url="https://i.pinimg.com/originals/15/6a/86/156a86c143634a2e444b673a7b373b46.jpg")
-        """
-        FIELDS START HERE!
-        """
-        embed.add_field(
-            name="help",
-            value="Displays this message (the list of commands).\nParameters: none.",
-            inline=False
-        )
-        embed.add_field(
-            name="stillonline",
-            value="See if I'm still online!\nParameters: none",
-            inline=False
-        )
-        embed.add_field(
-            name="kill",
-            value="Someone in your way? We hire the best hitmen and henchmen to help you kill your target!.\nParameters: ``target``",
-            inline=False
-        )
-        embed.add_field(
-            name="ask8ball",
-            value="Ask 8-ball something that you can't decide!\nParameters: ``question``",
-            inline=False
-        )
-        embed.add_field(
-            name="tryitandsee",
-            value="What happens? Try it and see!\nParameters: none",
-            inline=False
-        )
-        embed.add_field(
-            name="duckee",
-            value="Start a Duckee Match!\nParameters: ``competitor``",
-            inline=False
-        )
-        embed.add_field(
-            name="nitro",
-            value="Generate a Nitro gift link!\nParameters: none.",
-            inline=False
-        )
-        embed.add_field(
-            name="clearmatches",
-            value="Sets number of matches to 0.\nParameters: none.",
-            inline=False
-        )
-        embed.add_field(
-            name="hack",
-            value="Infiltrate their computer, government record, or the bank account...\nParameters: ``user``",
-            inline=False
-        )
-        currencyembed = discord.Embed(
-            title="Help Section/Currency/1",
-            description='View all the available moderation commands here. Separate parameters with commas. Wrap quotations around multi-word parameters (but don\'t put commas afterwards). Our prefix is ".".',
-            color=discord.Colour.green()
-        )
-        currencyembed.set_thumbnail(url="https://i.pinimg.com/originals/15/6a/86/156a86c143634a2e444b673a7b373b46.jpg")
-        currencyembed.add_field(
-            name="profile",
-            value="Check your/other people's profile!\nParameters: ``target_user_(optional)``",
-            inline=False
-        )
-        currencyembed.add_field(
-            name="balance/bal",
-            value="Check your/other people's balance!\nParameters: ``target_user_(optional)``",
-            inline=False
-        )
-        currencyembed.add_field(
-            name="withdraw/draw",
-            value="Get money out of your bank account!\nParameters: ``amount``",
-            inline=False
-        )
-        currencyembed.add_field(
-            name="deposit/dep",
-            value="Put money into your back account!\nParameters: ``amount``",
-            inline=False
-        )
-        currencyembed.add_field(
-            name="bet",
-            value="Test your luck! Bet some cash with Bain! \nParameters: `amount_(default=100)`",
-            inline=False
-        )
+        command_keys = []
+        command_info = []
+        for name, info in command_dict.items():
+            command_keys.append(name)
+            command_info.append(info)
 
-        currencyembed.add_field(
-            name="shop/buy",
-            value="Spend your money on weapons and armour!\nFill in the parameter if you want to buy an item. Don't if you're just viewing items.\nParameters: ``item_(optional)``",
-            inline=False
-        )
-        currencyembed.add_field(
-            name="sell",
-            value="Sell your guns and armour!\nParameters: ``item``, ``amount_(optional,_default=1)``",
-            inline=False
-        )
-        currencyembed.add_field(
-            name="inventory/inv",
-            value="Check out your inventory, about what (and how many) guns you have!\nParameters: ``user_(optional,_default=yourself)``",
-            inline=False
-        )
-        currencyembed2 = discord.Embed(
-            title="Help Section/Currency/2",
-            description='View all the available moderation commands here. Separate parameters with commas. Wrap quotations around multi-word parameters (but don\'t put commas afterwards). Our prefix is ".".',
-            color=discord.Colour.green()
-        )
-        currencyembed2.add_field(
-            name="work",
-            value="Do a heist job and earn money!\nParameters: none",
-            inline=False
-        )
-        currencyembed2.add_field(
-            name="fight",
-            value="Fight someone with the guns you choose! (You must own them)\nParameters: ``user``",
-            inline=False
-        )
-        currencyembed2.set_thumbnail(url="https://i.pinimg.com/originals/15/6a/86/156a86c143634a2e444b673a7b373b46.jpg")
-        currencyembed2.add_field(
-            name="hunt",
-            value="Go hunting!\nParameters: none",
-            inline=False
-        )
-        currencyembed2.add_field(
-            name="snipe",
-            value="Go sniping or hunting down people you despise!\nParameters: ``target_(optional)``",
-            inline=False
-        )
-        currencyembed2.add_field(
-            name="fish",
-            value="Go fishing and reel some delicious fishy seafood back home!\nParameters: none",
-            inline=False
-        )
-        currencyembed2.add_field(
-            name="scout",
-            value="Search around the world... for money.\nParameters: none",
-            inline=False
-        )
-        currencyembed2.add_field(
-            name="rob",
-            value="Plan a robbery, and steal money from your friends and enemies!\nParameters: `user`",
-            inline=False
-        )
-        toolembed = discord.Embed(
-            title="Help Section/Tools",
-            description='View all the available moderation commands here. Separate parameters with commas. Wrap quotations around multi-word parameters (but don\'t put commas afterwards). Our prefix is ".".',
-            color=discord.Colour.green()
-        )
-        toolembed.set_thumbnail(url="https://i.pinimg.com/originals/15/6a/86/156a86c143634a2e444b673a7b373b46.jpg")
-        toolembed.add_field(
-            name="rng",
-            value="Generate a random number!\nParameters: ``lower_limit``, ``upper_limit``",
-            inline=False
-        )
-        toolembed.add_field(
-            name="ping",
-            value="Pong! Find the latency between the bot and you.\nParameters: none",
-            inline=False
-        )
-        toolembed.add_field(
-            name="search",
-            value="Search an article on Wikipedia.\nParameters: ``page_name``",
-            inline=False
-        )
-        toolembed.add_field(
-            name="define",
-            value="Look up a word on the Free Dictionary API!\nParameters: ``word``",
-            inline=False
-        )
-        toolembed.add_field(
-            name="poll",
-            value="Start a poll!\nParameters: ``poll_name_(or_question_name)``, ``options``"
-        )
-        toolembed.add_field(
-            name="invite",
-            value="Invite me, or invite people to this server!\nNote: you must have the permission to create invites.\nParameters: none",
-            inline=False
-        )
-        toolembed.add_field(
-            name="revokeinvite",
-            value="Revoke an invite.\nNote: you must have the permission to create invites.\nParameters: ``invite_key/invite_link``",
-            inline=False
-        )
-        mathembed = discord.Embed(
-            title="Help Section/Mathematics",
-            description='View all the available mathematics commands here. Separate parameters with commas. Wrap quotations around multi-word parameters (but don\'t put commas afterwards). Our prefix is ".".',
-            color=discord.Color.green()
-        )
-        mathembed.add_field(
-            name="calculate",
-            value="Calculate **advanced** equations.\nParameters: `equation`, `solve_for`, `other_parameters_(infinite)`\n**Use `.calculate help` for more information.**",
-            inline=False
-        )
-        modembed = discord.Embed(
-            title="Help Section/Moderation",
-            description='View all the available moderation commands here. Separate parameters with commas. Wrap quotations around multi-word parameters (but don\'t put commas afterwards). Our prefix is ".".',
-            color=discord.Colour.green()
-        )
-        modembed.set_thumbnail(url="https://i.pinimg.com/originals/15/6a/86/156a86c143634a2e444b673a7b373b46.jpg")
-        modembed.add_field(
-            name="clear/purge",
-            value="Clears a number of messages.\nParameters: ``number``\nExamples: ``.clear 5``, ``.purge 6``",
-            inline=False
-        )
-        modembed.add_field(
-            name="timeout",
-            value="Timeouts a user.\nParameters: ``user``, ``duration``, ``optional-reason``\nExample: ``.timeout @Airblox 1m Spamming.``",
-            inline=False
-        )
-        modembed.add_field(
-            name="untimeout",
-            value="Removes a timeout from a user.\nParameters: ``user``, ``optional-reason``\nExample: ``.untimeout @Airblox You're forgiven.``",
-            inline=False
-        )
-        modembed.add_field(
-            name="assignrole",
-            value="Assigns a role to a user.\n[NOTE: You can only assign roles that are lower than what you have.]\nParameters: ``role``, ``user``\nExample: ``.assignrole Gifted @Airblox``",
-            inline=False
-        )
-        modembed.add_field(
-            name="demoterole",
-            value="Fires a member from a role.\nParameters: ``role``, ``user``\nExample: ``.demoterole Gifted @Airblox``",
-            inline=False
-        )
-        modembed.add_field(
-            name="kick",
-            value="Kicks a member from the server (they will still be able to rejoin with a new invite).\nParameters: ``user``, ``reason_(optional)``",
-            inline=False
-        )
-        modembed.add_field(
-            name="ban",
-            value="Bans a member from the server (they can't rejoin).\nParameters: ``user``, ``delete_messages?_(yes/no/true/false)``, ``reason_(optional)``",
-            inline=False
-        )
-        modembed.add_field(
-            name="unban",
-            value="Unbans a member from the server.\nParameters: ``user``, ``reason_(optional)``",
-            inline=False
-        )
-        modembed.add_field(
-            name="prune",
-            value="Prunes members from the server who have been inactive.\nParameters: `duration_(in_days,_default=7)`, `reason_(optional)`, `roles_(optional)`\nExamples: `.prune`, `.prune 7 \"inactive\"`",
-            inline=False
-        )
-        adminembed = discord.Embed(
-            title="Help Section/Administration",
-            description='View all the available moderation commands here. Separate parameters with commas. Wrap quotations around multi-word parameters (but don\'t put commas afterwards). Our prefix is ".".',
-            color=discord.Colour.green()
-        )
-        adminembed.set_thumbnail(url="https://i.pinimg.com/originals/15/6a/86/156a86c143634a2e444b673a7b373b46.jpg")
-        adminembed.add_field(
-            name="addrole",
-            value="Creates a new role.\nParameters: ``role_name``",
-            inline=False
-        )
-        adminembed.add_field(
-            name="delrole",
-            value="Deletes a role.\nParameters: ``role_name``",
-            inline=False
-        )
+        name = baintools.split_page(command_keys, 5)
+        info = baintools.split_page(command_info, 5)
 
-        if interaction.user != self.ctx.author:
-            await interaction.response.send_message("This menu isn't for you!", ephemeral=True)
-        else:
-            if select.values[0] == "General":
-                await interaction.response.edit_message(content=None, embed=embed)
-            elif select.values[0] == "Currency - Page 1":
-                await interaction.response.edit_message(content=None, embed=currencyembed)
-            elif select.values[0] == "Currency - Page 2":
-                await interaction.response.edit_message(content=None, embed=currencyembed2)
-            elif select.values[0] == "Tools":
-                await interaction.response.edit_message(content=None, embed=toolembed)
-            elif select.values[0] == "Mathematics":
-                await interaction.response.edit_message(content=None, embed=mathembed)
-            elif select.values[0] == "Moderation":
-                await interaction.response.edit_message(content=None, embed=modembed)
-            elif select.values[0] == "Administration":
-                await interaction.response.edit_message(content=None, embed=adminembed)
+        categorised = {}
 
+        for _name, _info in zip(name, info):
+            try:
+                for __name, __info in zip(_name, _info):
+                    categorised[__info["category"]].append(f"**{bot.command_prefix}{__name}**\n*{__info['doc']}*")
+            except KeyError:
+                for __name, __info in zip(_name, _info):
+                    categorised[__info["category"]] = [f"**{bot.command_prefix}{__name}**\n*{__info['doc']}*"]
 
-@bot.command()
-async def help(ctx):
-    view = HelpView(ctx)
+        for category, items in categorised.items():
+            categorised[category] = baintools.split_page(items, 5)
 
-    await ctx.send(content="From the select below, select a category!", view=view)
+        embeds = {}
+        options = []
+        for page_name, lines in categorised.items():
+            # Per category
+            for __index, __line in enumerate(lines):
+                # Per page
+                cat_embed = discord.Embed(title=f"Help Page/{page_name}", description="\n\n".join(__line), colour=discord.Colour.blurple()).set_footer(text=f"Page {__index+1}/{len(lines)}")
+                try:
+                    embeds[page_name].append(cat_embed)
+                except KeyError:
+                    embeds[page_name] = [cat_embed]
+            with open("command_category_description_database.json") as file:
+                cat_info = json.load(file)
+            options.append(discord.SelectOption(label=page_name, description=cat_info[page_name]["description"], emoji=cat_info[page_name]["emoji"]))
+
+        select = Select(placeholder="Select a category...", options=options)
+
+        class Storage:
+            def __init__(self):
+                self.page = 1
+                self.opened = False
+
+        storage = Storage()
+
+        async def select_callback(interaction: discord.Interaction):
+            if interaction.user == ctx.author:
+                if not storage.opened:
+                    view.add_item(button_prev)
+                    view.add_item(button_next)
+                    view.add_item(button_jump)
+                    storage.opened = True
+                await interaction.response.edit_message(embed=embeds[select.values[0]][0], view=view)
+
+        button_prev = Button(label="⏪ Prev.", style=discord.ButtonStyle.blurple)
+        button_next = Button(label="⏩ Next", style=discord.ButtonStyle.blurple)
+        button_jump = Button(label="Jump...", style=discord.ButtonStyle.gray)
+
+        modal = Modal(title="Blackmarket: Jump to...")
+        modal_field = InputText(label="Page Number", style=discord.InputTextStyle.short)
+        modal.add_item(modal_field)
+
+        async def modal_callback(interaction):
+            if interaction.user == ctx.author:
+                try:
+                    await interaction.response.edit_message(
+                        embed=embeds[select.values[0]][int(modal.children[0].value) - 1])
+                except (TypeError, IndexError, ValueError) as error_msg:
+                    await interaction.response.send_message(content=f"Input something valid.\n`{error_msg}`",
+                                                            ephemeral=True)
+
+        modal.callback = modal_callback
+
+        async def button_jump_callback(interaction: discord.Interaction):
+            if interaction.user == ctx.author:
+                await interaction.response.send_modal(modal)
+
+        async def button_prev_callback(interaction):
+            if interaction.user == ctx.author:
+                if storage.page == 1:
+                    await interaction.response.defer()
+                    await interaction.followup.send(content="It's already the first page!", ephemeral=True, wait=True)
+                else:
+                    storage.page -= 1
+                    new_embed = embeds[select.values[0]][storage.page - 1]
+                    await interaction.response.edit_message(embed=new_embed)
+
+        async def button_next_callback(interaction):
+            if interaction.user == ctx.author:
+                length_of_cat = len(embeds[select.values[0]])
+                if storage.page == length_of_cat:
+                    await interaction.response.defer()
+                    await interaction.followup.send(content="It's already the last page!", ephemeral=True, wait=True)
+                else:
+                    storage.page += 1
+                    new_embed = embeds[select.values[0]][storage.page - 1]
+                    await interaction.response.edit_message(embed=new_embed)
+
+        select.callback = select_callback
+        button_prev.callback = button_prev_callback
+        button_next.callback = button_next_callback
+        button_jump.callback = button_jump_callback
+
+        select.callback = select_callback
+        view = View()
+        view.disable_on_timeout = True
+        view.add_item(select)
+
+        await ctx.reply(content=None, embed=discord.Embed(title="Help Page", description="Select a category to begin!", colour=discord.Colour.blurple()), view=view)
+
+    else:
+        target = None
+        for i in list(bot.commands):
+            if i.name == command.replace(".", ""):
+                target = i
+                break
+        try:
+            parameters = target.callback.__doc__.split("___parameters__")[1]
+        except AttributeError:
+            await throw_crimenet_error(ctx, 400, "Invalid command.")
+            return
+        docstr = target.callback.__doc__.split("___description__")[1]
+
+        await ctx.reply(content=None, embed=discord.Embed(title=f"{bot.command_prefix}{target.qualified_name}", description=f"*{docstr}*", colour=discord.Colour.blurple()).add_field(name="Parameters", value=parameters))
 
 
 # Moderation
 @bot.command(name="assign")
 @commands.has_permissions(moderate_members=True)
 async def assign_role(ctx, role: discord.Role, user: discord.Member = None):
+    """___category__Moderation___category__
+___parameters__`role` - The role to assign.
+`user` - The user to assign to.___parameters__
+___description__Assigns a role to a member."""
     await user.add_roles(role)
     await ctx.send(f"Assigned {user.mention} the role of {role}. (Moderator: {ctx.author.mention}.)")
 
-
-@bot.command(name="demote")
+@bot.command(name="demote", description="Removes a member's role.", category="Moderation", parameters="`role` - The role to remove.\n`user` - The user to demote.")
 @commands.has_permissions(moderate_members=True)
 async def demote_role(ctx, role: discord.Role, user: discord.Member = None):
     await user.remove_roles(role)
     await ctx.send(f"Moderator {ctx.author.mention} has fired {user.mention} from the role of {role}.")
 
-
-@bot.command()
+@bot.command(name="clear", description="Deletes messages in the current channel.", category="Moderation", parameters="`amount` - The number of messages to clear.")
 @commands.has_permissions(moderate_members=True)
 async def clear(ctx, arg):
     msg = await ctx.send(f"Purging/clearing {arg} messages...")
@@ -398,31 +236,26 @@ async def clear(ctx, arg):
     successmsg = await ctx.send(f"Successfully purged/cleared {arg} message(s).")
     await successmsg.delete(delay=5)
 
-
-@bot.command()
+@bot.command(name="purge", description="Deletes messages in the current channel.", category="Moderation", parameters="`amount` - The number of messages to clear.")
 @commands.has_permissions(moderate_members=True)
 async def purge(ctx, arg):
     await ctx.invoke(clear, arg)
 
-
-@bot.command()
+@bot.command(name="timeout", description="Puts a user in timeout.", category="Moderation", parameters="`user` - The user to timeout.\n`time` - The duration of the timeout (e.g. 1h).\n`reason` - [Optional] The reason for timeout, stored in the audit log.")
 @commands.has_permissions(moderate_members=True)
 async def timeout(ctx, user: discord.Member = None, time=None, *, reason=None):
     time = humanfriendly.parse_timespan(time)
     await user.timeout(until=discord.utils.utcnow() + datetime.timedelta(seconds=time),
                        reason=f"{ctx.author} - {reason}")
-    await ctx.send(
-        f"{user} has been timed out for {time} seconds by {ctx.author.mention} | \"{reason}\" -{ctx.author}.")
+    await ctx.send(f"{user} has been timed out for {time} seconds by {ctx.author.mention} | \"{reason}\" -{ctx.author}.")
 
-
-@bot.command()
+@bot.command(description="Removes a user's timeout.", category="Moderation", parameters="`user` - The user to timeout.\n`reason` - [Optional] The reason for removing the timeout.")
 @commands.has_permissions(moderate_members=True)
 async def untimeout(ctx, user: discord.Member = None, *, reason=None):
     await user.timeout(until=None, reason=reason)
     await ctx.send(f"Timeout has been removed from {user.mention} by {ctx.author.mention}. [Reason: {reason}]")
 
-
-@bot.command()
+@bot.command(description="Kicks a user from the server.", category="Moderation", parameters="`user` - The user to kick.\n`reason` - [Optional] The reason for the kick.")
 @commands.has_permissions(moderate_members=True)
 async def kick(ctx, user: discord.Member = None, *kick_reason):
     reason = " ".join(kick_reason)
@@ -432,8 +265,7 @@ async def kick(ctx, user: discord.Member = None, *kick_reason):
         await user.kick(reason=reason)
         await ctx.reply(f"Successfully kicked {user.mention}. Reason: ``{ctx.author} - {reason}``")
 
-
-@bot.command()
+@bot.command(description="Bans a user from the server.", category="Moderation", parameters="`user` - The user to ban.\n`reason` - [Optional] The reason for the ban.")
 @commands.has_permissions(moderate_members=True)
 async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=None):
     if user == None:
@@ -448,8 +280,7 @@ async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=N
             await ctx.reply(
                 f"Successfully banned {user.mention} (messages were not cleared). Reason: ``{ctx.author} - {reason}``")
 
-
-@bot.command()
+@bot.command(description="Unbans a user from the server.", category="Moderation", parameters="`user` - The user to unban.\n`reason` - [Optional] The reason for the unban.")
 @commands.has_permissions(moderate_members=True)
 async def unban(ctx, user: discord.User = None, reason=None):
     if user is None:
@@ -458,16 +289,13 @@ async def unban(ctx, user: discord.User = None, reason=None):
         await ctx.guild.unban(user=user, reason=reason)
         await ctx.reply(f"Successfully unbanned {user.mention} from the server. Reason: ``{ctx.author} - {reason}``")
 
-
-@bot.command()
+@bot.command(description="Kicks members who have been inactive.", category="Moderation", parameters="`duration` - The amount of **days** for the prune to take effect (default: 7).\n`reason` - [Optional, **Wrap in quotes.**] The reason for the prune.\n`*roles` - (Seperate by space) Roles to include in the prune.")
 @commands.has_permissions(moderate_members=True)
 async def prune(ctx, duration=7, reason="None.", *roles):
     guild = ctx.guild
 
     pruning = await guild.prune_members(days=duration, roles=roles, reason=f"{ctx.author} - reason")
-    await ctx.reply(
-        f"Pruned {pruning} members who were inactive on this server for more than {duration} days. | Reason: {reason}")
-
+    await ctx.reply(f"Pruned {pruning} members who were inactive on this server for more than {duration} days. | Reason: {reason}")
 
 # Server administration
 @bot.command()
