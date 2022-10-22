@@ -984,14 +984,16 @@ async def nitro(ctx):
 
         claimbutton = discord.ui.Button(label="Claimed", style=discord.ButtonStyle.danger, disabled=True)
 
-        newnitroview = discord.ui.View()
+        newnitroview = View()
+        newnitroview.disable_on_timeout = True
         newnitroview.add_item(claimbutton)
         await interaction.response.edit_message(content=None, embed=nitroembed, view=newnitroview)
         await interaction.followup.send(content="https://imgur.com/NQinKJB", ephemeral=True)
 
     claimbutton.callback = nitro_callback
 
-    view = discord.ui.View()
+    view = View()
+    view.disable_on_timeout = True
     view.add_item(claimbutton)
 
     await ctx.send(embed=nitroembed, view=view)
@@ -1799,35 +1801,6 @@ async def shop(ctx):
     await ctx.reply(embed=discord.Embed(title="CRIME.NET/Blackmarket/Home_Page", description="Select a category below to get started!\n"+f"_Use `{bot.command_prefix}item` for more information about an item._", colour=discord.Color.blurple()), view=view)
 
 @bot.command()
-async def inspect(ctx, *item_name):
-    await player_create(ctx, ctx.author.id)
-
-    item = " ".join(item_name) if len(item_name) > 0 else None
-
-    item = baintools.item_autocorrect(item, True) if item is not None else None
-    player = (await player_database())[str(ctx.author.id)]
-    if item is None:
-        await throw_crimenet_error(ctx, 400, "Invalid weapon.")
-    else:
-        data = await get_item(item)
-        description = f"**({'{:,}'.format(player[item])} owned)**\n{data['description']}\n\n**Category:** {(await get_category_desc(data['category']))['name']} - {data['type']}, {string.capwords(data['slot'])}\n"
-
-        special_list_str = f"**{string.capwords(list(data['data'].keys())[0])}:** {list(data['data'].values())[0][0]} ({', '.join(list(data['data'].values())[0][1:])})\n\n"
-        cost_str = f"\nCosts **${'{:,}'.format(data['data']['cost'])}**."
-
-        attr_str = ""
-        for attr, val in data['data'].items():
-            if type(val) != list and attr != "cost":
-                attr_str += f"**{string.capwords(attr.replace('_', ' ')).replace('Rate Of Fire', 'Rate of Fire').replace('Reload', 'Reload Time (seconds)')}:** {'**'+'{:,}'.format(val)+'**' if val is not None else '-'}\n"
-
-        description += special_list_str
-        description += attr_str
-        description += cost_str
-
-        embed = discord.Embed(title=data["name"], description=description, colour=discord.Colour.blurple()).set_thumbnail(url=data["image_link"])
-        await ctx.reply(embed=embed)
-
-@bot.command()
 async def buy(ctx, *args):
     arguments = " ".join(args).split(",")
     item = arguments[0]
@@ -1910,10 +1883,94 @@ async def sell(ctx, *args):
         await throw_crimenet_error(ctx, 404, "Invalid item.")
         return
 
-    cost = items[key]["data"]["cost"]
+    sell_data = items[key]
     player = data[str(ctx.author.id)]
 
     # Run checks for last items
+    primary_amt = 0
+    secondary_amt = 0
+
+    for _item, _amount in player.items():
+        item_data = await get_item(_item)
+        if item_data["valid"]:
+            if item_data["slot"] == "primary":
+                if _amount >= 1:
+                    primary_amt += 1
+            elif item_data["slot"] == "secondary":
+                if _amount >= 1:
+                    secondary_amt += 1
+
+    print(primary_amt)
+    print(secondary_amt)
+
+    if primary_amt - 1 == 0:
+        if sell_data["slot"] == "primary":
+            await throw_crimenet_error(ctx, 400, "You cannot sell your last primary weapon!")
+            return
+    if secondary_amt - 1 == 0:
+        if sell_data["slot"] == "secondary":
+            await throw_crimenet_error(ctx, 400, "You cannot sell your last secondary weapon!")
+            return
+
+    if amount == 1:
+        data[str(ctx.author.id)][key] -= 1
+        data[str(ctx.author.id)]["cash"] += (sell_data["data"]["cost"] * 0.25).__floor__()
+        await player_save(data)
+        embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{'{:,}'.format(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${'{:,}'.format((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
+        await ctx.reply(content=None, embed=embed)
+    elif amount > 1:
+        button_confirm = Button(label="Confirm", style=discord.ButtonStyle.blurple)
+        button_cancel = Button(label="Cancel", style=discord.ButtonStyle.red)
+
+        async def button_confirm_callback(interaction: discord.Interaction):
+            data[str(ctx.author.id)][key] -= amount
+            data[str(ctx.author.id)]["cash"] += (sell_data["data"]["cost"] * 0.25 * amount).__floor__()
+            await player_save(data)
+            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{'{:,}'.format(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${'{:,}'.format((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
+            await interaction.response.edit_message(embed=new_embed, view=None)
+
+        async def button_cancel_callback(interaction: discord.Interaction):
+            await interaction.response.edit_message(embed=discord.Embed(title="Blackmarket/Transaction_Cancelled", description="Your transaction has been cancelled.", colour=discord.Colour.red()), view=None)
+
+        button_confirm.callback = button_confirm_callback
+        button_cancel.callback = button_cancel_callback
+        view = View()
+        view.disable_on_timeout = True
+        view.add_item(button_confirm)
+        view.add_item(button_cancel)
+        confirmation_embed = discord.Embed(title="Blackmarket/Transaction/Pending", description=f"Are you sure you want to sell **{'{:,}'.format(amount)}x {sell_data['name']}**?\n\nYou will be paid **${'{:,}'.format((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour=discord.Colour.blurple())
+        await ctx.reply(embed=confirmation_embed, view=view)
+    else:
+        await throw_crimenet_error(ctx, 400, "Invalid amount.")
+
+@bot.command()
+async def inspect(ctx, *item_name):
+    await player_create(ctx, ctx.author.id)
+
+    item = " ".join(item_name) if len(item_name) > 0 else None
+
+    item = baintools.item_autocorrect(item, True) if item is not None else None
+    player = (await player_database())[str(ctx.author.id)]
+    if item is None:
+        await throw_crimenet_error(ctx, 400, "Invalid weapon.")
+    else:
+        data = await get_item(item)
+        description = f"**({'{:,}'.format(player[item])} owned)**\n{data['description']}\n\n**Category:** {(await get_category_desc(data['category']))['name']} - {data['type']}, {string.capwords(data['slot'])}\n"
+
+        special_list_str = f"**{string.capwords(list(data['data'].keys())[0])}:** {list(data['data'].values())[0][0]} ({', '.join(list(data['data'].values())[0][1:])})\n\n"
+        cost_str = f"\nCosts **${'{:,}'.format(data['data']['cost'])}**."
+
+        attr_str = ""
+        for attr, val in data['data'].items():
+            if type(val) != list and attr != "cost":
+                attr_str += f"**{string.capwords(attr.replace('_', ' ')).replace('Rate Of Fire', 'Rate of Fire').replace('Reload', 'Reload Time (seconds)')}:** {'**'+'{:,}'.format(val)+'**' if val is not None else '-'}\n"
+
+        description += special_list_str
+        description += attr_str
+        description += cost_str
+
+        embed = discord.Embed(title=data["name"], description=description, colour=discord.Colour.blurple()).set_thumbnail(url=data["image_link"])
+        await ctx.reply(embed=embed)
 
 @bot.command(name="item")
 async def inspect_revoke_item(ctx, *item_name):
@@ -1997,8 +2054,27 @@ async def profile(ctx, user: discord.Member = None):
         colour=discord.Colour.blurple()
     )
     embed.set_thumbnail(url=profile_char_dtb['image_mask'])
-    embed.set_image(url=profile_char_dtb['image_fbi_photo'])
-    await ctx.reply(embed=embed)
+
+    view = View()
+    view.disable_on_timeout = True
+
+    button_bal = Button(label="Balance", style=discord.ButtonStyle.blurple)
+    button_inv = Button(label="Inventory", style=discord.ButtonStyle.blurple)
+
+    async def button_bal_callback(interaction: discord.Interaction):
+        await interaction.response.defer()
+        await balance(ctx, user)
+
+    async def button_inv_callback(interaction: discord.Interaction):
+        await interaction.response.defer()
+        await inventory(ctx, user)
+
+    button_bal.callback = button_bal_callback
+    button_inv.callback = button_inv_callback
+    view.add_item(button_bal)
+    view.add_item(button_inv)
+
+    await ctx.reply(embed=embed, view=view)
 
 @bot.group(name="customize")
 async def _customize(ctx: commands.Context):
@@ -2109,7 +2185,7 @@ async def balance(ctx, user: discord.Member = None):
         except (KeyError, TypeError):
             pass
 
-    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${'{:,}'.format(cash)}\n**Offshore Account:** ${'{:,}'.format(offshore)} [Total: ${'{:,}'.format(cash+offshore)}]\n**Item Worth:** ${'{:,}'.format(item_worth)}\n\n**Net Worth:** ${'{:,}'.format(cash+offshore+item_worth)}", colour=discord.Colour.blurple())
+    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${'{:,}'.format(cash)}\n**Offshore Account:** ${'{:,}'.format(offshore)} [Total: ${'{:,}'.format(cash+offshore)}]\n**Item Worth:** ${'{:,}'.format(item_worth*0.25)}\n\n**Net Worth:** ${'{:,}'.format(cash+offshore+(item_worth*0.25))}", colour=discord.Colour.blurple())
     await ctx.reply(content=None, embed=embed)
 
 @bot.command(name="bal")
