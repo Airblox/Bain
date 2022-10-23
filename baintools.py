@@ -168,6 +168,10 @@ emojis = {
     "diff_death_sentence": "<:ds_skull:1029041401406685245>",
     "diff_od": "<:one_down:1029041082257899560>",
 
+    "category_tradecard_bain": "<:tradecard_bain:1033584291990491146>",
+    "category_carpenters_delight": "<:carpenters_delight:1033585443603763270>",
+    "category_klas_shovel": "<:klas_shovel:1033590341456109659>",
+
     "amcar": "<:amcar:1032610038226890812>",
     "ak": "<:ak:1032610040462454845>",
     "car4": "<:car4:1032610042865778728>",

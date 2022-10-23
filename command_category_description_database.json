@@ -2,16 +2,16 @@
   "General": {
     "name": "General",
     "description": "General commands.",
-    "emoji": "<:amcar:1032610038226890812>"
+    "emoji": "🤖"
   },
   "Moderation": {
     "name": "Moderation",
     "description": "Commands for moderation.",
-    "emoji": "<:amcar:1032610038226890812>"
+    "emoji": "🛠"
   },
   "unknown": {
     "name": "testing",
     "description": "category for testing",
-    "emoji": "<:amcar:1032610038226890812>"
+    "emoji": "🔨"
   }
 }

@@ -221,43 +221,66 @@ ___description__Assigns a role to a member."""
     await user.add_roles(role)
     await ctx.send(f"Assigned {user.mention} the role of {role}. (Moderator: {ctx.author.mention}.)")
 
-@bot.command(name="demote", description="Removes a member's role.", category="Moderation", parameters="`role` - The role to remove.\n`user` - The user to demote.")
+@bot.command(name="demote")
 @commands.has_permissions(moderate_members=True)
 async def demote_role(ctx, role: discord.Role, user: discord.Member = None):
+    """___category__Moderation___category__
+___parameters__`role` - The role to remove.
+`user` - The user to remove the role from.___parameters__
+___description__Removes a role from a member."""
     await user.remove_roles(role)
     await ctx.send(f"Moderator {ctx.author.mention} has fired {user.mention} from the role of {role}.")
 
-@bot.command(name="clear", description="Deletes messages in the current channel.", category="Moderation", parameters="`amount` - The number of messages to clear.")
+@bot.command()
 @commands.has_permissions(moderate_members=True)
 async def clear(ctx, arg):
+    """___category__Moderation___category__
+___parameters__`arg` - The number of messages to clear.___parameters__
+___description__Deletes messages in a channel."""
     msg = await ctx.send(f"Purging/clearing {arg} messages...")
     await msg.delete()
     await ctx.channel.purge(limit=(int(arg) + 1))
     successmsg = await ctx.send(f"Successfully purged/cleared {arg} message(s).")
     await successmsg.delete(delay=5)
 
-@bot.command(name="purge", description="Deletes messages in the current channel.", category="Moderation", parameters="`amount` - The number of messages to clear.")
+@bot.command()
 @commands.has_permissions(moderate_members=True)
 async def purge(ctx, arg):
+    """___category__Moderation___category__
+___parameters__`arg` - The number of messages to clear.___parameters__
+___description__Deletes messages in a channel."""
     await ctx.invoke(clear, arg)
 
-@bot.command(name="timeout", description="Puts a user in timeout.", category="Moderation", parameters="`user` - The user to timeout.\n`time` - The duration of the timeout (e.g. 1h).\n`reason` - [Optional] The reason for timeout, stored in the audit log.")
+@bot.command()
 @commands.has_permissions(moderate_members=True)
 async def timeout(ctx, user: discord.Member = None, time=None, *, reason=None):
+    """___category__Moderation___category__
+___parameters__`user` - The user to timeout.
+`time` - The length of the timeout. (e.g. 1h)
+`reason` - *Optional*. The reason for the timeout, shown in the audit log.___parameters__
+___description__Timeouts a user."""
     time = humanfriendly.parse_timespan(time)
     await user.timeout(until=discord.utils.utcnow() + datetime.timedelta(seconds=time),
                        reason=f"{ctx.author} - {reason}")
     await ctx.send(f"{user} has been timed out for {time} seconds by {ctx.author.mention} | \"{reason}\" -{ctx.author}.")
 
-@bot.command(description="Removes a user's timeout.", category="Moderation", parameters="`user` - The user to timeout.\n`reason` - [Optional] The reason for removing the timeout.")
+@bot.command()
 @commands.has_permissions(moderate_members=True)
 async def untimeout(ctx, user: discord.Member = None, *, reason=None):
+    """___category__Moderation___category__
+___parameters__`user` - The user to remove the timeout from.
+`reason` - *Optional*. The reason for removing the timeout, shown in the audit log.___parameters__
+___description__Removes a timeouts from a user."""
     await user.timeout(until=None, reason=reason)
     await ctx.send(f"Timeout has been removed from {user.mention} by {ctx.author.mention}. [Reason: {reason}]")
 
-@bot.command(description="Kicks a user from the server.", category="Moderation", parameters="`user` - The user to kick.\n`reason` - [Optional] The reason for the kick.")
+@bot.command()
 @commands.has_permissions(moderate_members=True)
 async def kick(ctx, user: discord.Member = None, *kick_reason):
+    """___category__Moderation___category__
+___parameters__`user` - The user to kick.
+`reason` - *Optional*. The reason for the kick, shown in the audit log.___parameters__
+___description__Kicks a user."""
     reason = " ".join(kick_reason)
     if user == None:
         await ctx.reply("Specify a user.")
@@ -268,6 +291,10 @@ async def kick(ctx, user: discord.Member = None, *kick_reason):
 @bot.command(description="Bans a user from the server.", category="Moderation", parameters="`user` - The user to ban.\n`reason` - [Optional] The reason for the ban.")
 @commands.has_permissions(moderate_members=True)
 async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=None):
+    """___category__Moderation___category__
+___parameters__`user` - The user to ban.
+`reason` - *Optional*. The reason for the ban, shown in the audit log.___parameters__
+___description__Bans a user."""
     if user == None:
         await ctx.reply("Specify a user.")
     else:
@@ -283,6 +310,10 @@ async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=N
 @bot.command(description="Unbans a user from the server.", category="Moderation", parameters="`user` - The user to unban.\n`reason` - [Optional] The reason for the unban.")
 @commands.has_permissions(moderate_members=True)
 async def unban(ctx, user: discord.User = None, reason=None):
+    """___category__Moderation___category__
+___parameters__`user` - The user to unban.
+`reason` - *Optional*. The reason for the unban, shown in the audit log.___parameters__
+___description__Unbans a user."""
     if user is None:
         await ctx.reply("Specify a user.")
     else:
@@ -292,6 +323,10 @@ async def unban(ctx, user: discord.User = None, reason=None):
 @bot.command(description="Kicks members who have been inactive.", category="Moderation", parameters="`duration` - The amount of **days** for the prune to take effect (default: 7).\n`reason` - [Optional, **Wrap in quotes.**] The reason for the prune.\n`*roles` - (Seperate by space) Roles to include in the prune.")
 @commands.has_permissions(moderate_members=True)
 async def prune(ctx, duration=7, reason="None.", *roles):
+    """___category__Moderation___category__
+___parameters__`duration` - The time range for the prune.
+`reason` - *Optional*. The reason for the prune, shown in the audit log.___parameters__
+___description__Prunes members - kicks members who have been inactive."""
     guild = ctx.guild
 
     pruning = await guild.prune_members(days=duration, roles=roles, reason=f"{ctx.author} - reason")
@@ -489,7 +524,6 @@ async def addrole(ctx, *role_name):
 
     await ctx.send(embed=addrole_embed, view=addrole_view)
 
-
 @bot.command(name="deleterole")
 @commands.has_permissions(administrator=True)
 async def delrole(ctx, *args):
@@ -536,7 +570,6 @@ async def delrole(ctx, *args):
 
     await ctx.send(content=None, embed=delrole_embed, view=delrole_view)
 
-
 @bot.command(name="invite")
 @commands.has_permissions(create_instant_invite=True)
 async def invite(ctx):
@@ -570,7 +603,6 @@ async def invite(ctx):
     invite_view.add_item(revoke_invite)
     await original.edit("Click the button to show the link!", view=invite_view)
 
-
 @bot.command(name="revokeinv")
 @commands.has_permissions(ban_members=True)
 async def revokeinvite(ctx, arg, reason="None."):
@@ -578,7 +610,6 @@ async def revokeinvite(ctx, arg, reason="None."):
     delete_invite = await bot.fetch_invite(url=f"https://discord.gg/{arg1}", with_counts=False, with_expiration=False)
     await delete_invite.delete(reason=reason)
     await ctx.reply(f"Invite \"{arg1}\" has been revoked.")
-
 
 # Tools
 @bot.command()
@@ -790,6 +821,33 @@ async def _random(ctx, *numbers):
     embed.set_footer(text=f"Lower limit: {'{:,}'.format(numbers[0])}; Upper limit: {'{:,}'.format(numbers[1])}\nProcessing ID: {baintools.generate_transaction_id(10)}")
     await ctx.reply(content=None, embed=embed)
 
+@bot.command()
+async def numberguess(ctx, arg: int):
+    """___category__Tools___category__
+___parameters__`arg` - A number, which is the answer.___parameters__
+___description__Lets the bot guess a number, to see how close it is to your number.
+The limit for guessing is `±100`."""
+    if arg > 100 or arg < -100:
+        await throw_crimenet_error(ctx, 400, "Number is either too large or too small. Must be within the range of` `-100` `to` `100` `inclusive.")
+        return
+    bot_guess = random.randint(-100, 100)
+    res = ""
+    diff = ""
+    if bot_guess > arg:
+        res = "larger"
+    elif bot_guess < arg:
+        res = "smaller"
+    elif bot_guess == arg:
+        res = "same"
+
+    if res == "larger":
+        diff = f"{bot_guess - arg} larger than your guess!"
+    elif res == "smaller":
+        diff = f"{arg - bot_guess} smaller than your guess!"
+    elif res == "same":
+        diff = "Tie! That's... really rare!"
+    await ctx.reply(content=None, embed=discord.Embed(title="Number Guessing", description=f"**Your guess:** {arg}\n**Bain's guess:** {bot_guess}\n\n*{diff}*", colour=discord.Color.blurple()))
+
 # Trolling
 @bot.command()
 async def nitro(ctx):
@@ -826,7 +884,6 @@ async def nitro(ctx):
 
     await ctx.send(embed=nitroembed, view=view)
 
-
 @bot.command(name="tryitandsee")
 async def _tryitandsee(ctx, user: discord.Member = None):
     if user is None:
@@ -837,7 +894,6 @@ async def _tryitandsee(ctx, user: discord.Member = None):
         await ctx.reply(content=f"{user.mention}, from {ctx.author},\nhttps://tryitands.ee")
     finally:
         await ctx.message.delete()
-
 
 @bot.command()
 async def kill(ctx, arg: discord.Member):
@@ -878,7 +934,6 @@ async def kill(ctx, arg: discord.Member):
                 f"out!")
         else:
             await ctx.send(f"<:glock_17:966176633398644757> {ctx.message.author.mention} killed {arg} with {quotenumber}")
-
 
 @bot.command()
 async def hack(ctx, user: discord.Member):
@@ -1395,7 +1450,6 @@ async def join(ctx):
         else:
             await ctx.reply(f"An error occured.\nError: `{e}`")
 
-
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def leave(ctx):
@@ -1403,7 +1457,6 @@ async def leave(ctx):
         await ctx.guild.voice_client.disconnect()
     except Exception:
         await ctx.reply("Error. Most likely that I had not been in a voice channel in the first place.")
-
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -1417,7 +1470,6 @@ async def disconnect(ctx, user: discord.Member, reason=None):
     except Exception:
         await ctx.reply("An error occured.")
 
-
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def pause(ctx):
@@ -1427,7 +1479,6 @@ async def pause(ctx):
         await ctx.reply("Audio already paused/no audio is playing.")
     except Exception as e:
         await ctx.reply(f"Error: `{e}`")
-
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -1441,13 +1492,11 @@ async def resume(ctx):
     except Exception as e:
         await ctx.reply(f"Error: `{e}`")
 
-
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def stop(ctx):
     voice = discord.VoiceClient(channel=ctx.author.voice.channel, client=bot)
     voice.stop()
-
 
 @bot.command()
 async def play(ctx, song):
@@ -1461,7 +1510,7 @@ async def play(ctx, song):
     else:
         # Create playlist
         spotdlsong = f"spotdl {song}"
-        spotdlpath = f"C:\\Users\\anson\\Documents\\DATA\\Personal\\Python\\Bain_Discord\\Music\\{ctx.author.guild.id}"
+        spotdlpath = f"{secrets['os_dir']}\\Music\\{ctx.author.guild.id}"
 
         if not os.path.exists(spotdlpath):
             os.makedirs(spotdlpath)
@@ -1474,7 +1523,6 @@ async def play(ctx, song):
         voiceChannel.play(discord.FFmpegPCMAudio(
             "Olivia Rodrigo, Joshua Bassett, Disney - Even WhenThe Best Part - From 'High School Musical -  The Musical -  The Series (Season 2).mp3"),
             after=lambda e: print("done", e))
-
 
 # Owner-only.
 @bot.command()
