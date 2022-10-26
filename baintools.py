@@ -18,6 +18,15 @@ def snake_case(s):
                 s.replace('-', ' '))).split()).lower()
 
 
+def swap_dict_index(_dict: dict, a: int, b: int):
+    test_dict = _dict
+    tups = list(test_dict.items())
+    tups[a], tups[b] = tups[b], tups[a]
+    res = dict(tups)
+
+    return res
+
+
 def split_page(_t, _i):
     res = []
     cur_res = []
@@ -103,6 +112,7 @@ def item_autocorrect(_item: str, prefix: bool = True):
     else:
         return item
 
+
 async def player_heist_end(*, user_id: str, heist: str, loot: int, success: bool, difficulty: str = "normal"):
     async def player_database():
         with open("mainbank.json") as file:
@@ -151,16 +161,6 @@ async def player_heist_end(*, user_id: str, heist: str, loot: int, success: bool
                 data[str(user_id)]["reputation"])
             data[str(user_id)]["reputation"] += 1
         await player_save(data)
-
-difficulty_scaling = {
-    "normal": float(1),
-    "hard": 1.5,
-    "very hard": float(2),
-    "overkill": 2.5,
-    "mayhem": float(3),
-    "death wish": 4.5,
-    "death sentence": 5.5
-}
 emojis = {
     "diff_skull": "<:diff_skull:1029041261107236904>",
     "diff_mayhem": "<:mayhem_skull:1029041319638732813>",
@@ -168,9 +168,10 @@ emojis = {
     "diff_death_sentence": "<:ds_skull:1029041401406685245>",
     "diff_od": "<:one_down:1029041082257899560>",
 
-    "category_tradecard_bain": "<:tradecard_bain:1033584291990491146>",
-    "category_carpenters_delight": "<:carpenters_delight:1033585443603763270>",
     "category_klas_shovel": "<:klas_shovel:1033590341456109659>",
+    "category_icepick": "<:icepick:1033784960622010419>",
+    "category_carpenters_delight": "<:carpenters_delight:1033585443603763270>",
+    "category_tradecard_bain": "<:tradecard_bain:1033584291990491146>",
 
     "amcar": "<:amcar:1032610038226890812>",
     "ak": "<:ak:1032610040462454845>",
@@ -180,6 +181,16 @@ emojis = {
 
     "chimano88": "<:chimano_88:1032610049006239744>",
     "crosskill": "<:crosskill:1032610050717519892>"
+}
+
+difficulty_scaling = {
+    "normal": float(1),
+    "hard": 1.5,
+    "very hard": float(2),
+    "overkill": 2.5,
+    "mayhem": float(3),
+    "death wish": 4.5,
+    "death sentence": 5.5
 }
 difficulty_select = Select(placeholder="Select a difficulty...", options=[
     SelectOption(label="Normal", emoji=emojis["diff_skull"], value="normal"),

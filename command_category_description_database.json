@@ -2,16 +2,26 @@
   "General": {
     "name": "General",
     "description": "General commands.",
-    "emoji": "🤖"
+    "emoji": "<:klas_shovel:1033590341456109659>"
+  },
+  "Tools": {
+    "name": "Tools",
+    "description": "Useful commands.",
+    "emoji": "<:icepick:1033784960622010419>"
   },
   "Moderation": {
     "name": "Moderation",
     "description": "Commands for moderation.",
-    "emoji": "🛠"
+    "emoji": "<:carpenters_delight:1033585443603763270>"
+  },
+  "Server Management": {
+    "name": "Server Management",
+    "description": "Commands for managing the server.",
+    "emoji": "<:tradecard_bain:1033584291990491146>"
   },
   "unknown": {
     "name": "testing",
     "description": "category for testing",
-    "emoji": "🔨"
+    "emoji": "<:klas_shovel:1033590341456109659>"
   }
 }

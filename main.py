@@ -1,5 +1,6 @@
 import asyncio
 import string
+import sys
 import coolname
 import discord
 import random
@@ -24,7 +25,8 @@ from wikipedia import PageError, DisambiguationError
 from baintools import PlayerInfo, PlayerHeist
 
 
-print("Bain is connecting to CRIME.NET...")
+print(f"INITIALIZE AT {datetime.datetime.now()}\n")
+print("CRIME.NET CONNECTION\nSTATUS CODE: 200\n>>> Fetching server information...")
 
 # Secrets
 def get_secrets():
@@ -57,16 +59,16 @@ async def on_command_error(ctx, error):
 async def on_ready():
     await bot.change_presence(status=discord.Status.online, activity=discord.Game(name="CRIME.NET | .help"))
     guild_count = 0
-    print("Bain is online, and is in the following servers:")
+    print(f">>> Server info <{datetime.datetime.now()}>")
     for guild in bot.guilds:
         print(f"- {guild.name} ({guild.owner}, {guild.id}).")
         guild_count = guild_count + 1
 
-    print(f"(In {guild_count} servers in total.)")
+    print(f"(In {guild_count} servers in total.)\n\nBain is online. Run \"._logout\" to get Bain offline.")
 
 
 @bot.command(name="help")
-async def help(ctx: commands.Context, command=None):
+async def _help(ctx: commands.Context, command=None):
     """___category__General___category__
 ___parameters__None.___parameters__
 ___description__Displays the help page."""
@@ -824,13 +826,15 @@ async def _random(ctx, *numbers):
 @bot.command()
 async def numberguess(ctx, arg: int):
     """___category__Tools___category__
-___parameters__`arg` - A number, which is the answer.___parameters__
+___parameters__`arg` - A number, which is the answer. Type "leaderboard" for the leaderboard.___parameters__
 ___description__Lets the bot guess a number, to see how close it is to your number.
 The limit for guessing is `±100`."""
     if arg > 100 or arg < -100:
         await throw_crimenet_error(ctx, 400, "Number is either too large or too small. Must be within the range of` `-100` `to` `100` `inclusive.")
         return
+
     bot_guess = random.randint(-100, 100)
+    _diff = abs(bot_guess - arg)
     res = ""
     diff = ""
     if bot_guess > arg:
@@ -846,7 +850,9 @@ The limit for guessing is `±100`."""
         diff = f"{arg - bot_guess} smaller than your guess!"
     elif res == "same":
         diff = "Tie! That's... really rare!"
+
     await ctx.reply(content=None, embed=discord.Embed(title="Number Guessing", description=f"**Your guess:** {arg}\n**Bain's guess:** {bot_guess}\n\n*{diff}*", colour=discord.Color.blurple()))
+
 
 # Trolling
 @bot.command()
@@ -1532,10 +1538,14 @@ async def _status(ctx):
 
 @bot.command()
 @commands.is_owner()
-async def _end(ctx):
-    print(f"Program killed in {ctx.guild.name}.")
+async def _logout(ctx: commands.Context):
+    print(f"Terminating program in {ctx.guild.name} <{datetime.datetime.now()}>...")
     await ctx.send(f"Program killed by {ctx.author.mention}! I'm going offline now. See you guys at the safehouse.")
-    exit()
+    try:
+        await ctx.bot.close()
+    except Exception as e:
+        print(f"An error occurred.\n{e}")
+        return
 
 @bot.command(name="_generate_inv")
 @commands.is_owner()
@@ -1570,6 +1580,12 @@ async def _commands(ctx):
         await ctx.reply(i)
 
     await ctx.reply("end")
+
+@bot.command(name="_pycord_ver")
+@commands.is_owner()
+async def _pycord_ver(ctx):
+    embed = discord.Embed(title="Version Info", colour=discord.Colour.blurple()).add_field(name="Pycord Version", value=discord.__version__, inline=False).add_field(name="Pycord Release Level", value=f"Major: {discord.version_info.major}\nMinor: {discord.version_info.minor}\nMicro: {discord.version_info.micro}\nRelease Level: `{discord.version_info.release_level}`\nSerial: `{discord.version_info.serial}`\nBuild: {discord.version_info.build}\nCommit: `{discord.version_info.commit}`\nDate: {discord.version_info.date}", inline=False).add_field(name="Python version", value=sys.version, inline=False).set_thumbnail(url="https://www.python.org/static/img/python-logo@2x.png")
+    await ctx.reply(content=None, embed=embed)
 
 # Player system/Currency MAIN
 @bot.command()
