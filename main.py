@@ -338,6 +338,9 @@ ___description__Prunes members - kicks members who have been inactive."""
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def addrole(ctx, *role_name):
+        """___category__Server Management___category__
+___parameters__`role_name` - The name of the role to create.___parameters__
+___description__Adds a role with permission options."""
     rolename = " ".join(role_name)
     addrole_embed = discord.Embed(
         title="New Role",
@@ -529,6 +532,9 @@ async def addrole(ctx, *role_name):
 @bot.command(name="deleterole")
 @commands.has_permissions(administrator=True)
 async def delrole(ctx, *args):
+    """___category__Server Management___category__
+___parameters__`role_name` - The name of the role to delete.___parameters__
+___description__Deletes a role."""
     arg = " ".join(args)
     role = discord.utils.get(ctx.message.guild.roles, name=arg)
 
@@ -575,6 +581,9 @@ async def delrole(ctx, *args):
 @bot.command(name="invite")
 @commands.has_permissions(create_instant_invite=True)
 async def invite(ctx):
+    """___category__Server Management___category__
+___parameters__None.___parameters__
+___description__Creates an invite."""
     original = await ctx.reply("Creating invite...")
     invite_link_invite = await ctx.channel.create_invite()
     invite_link = str(invite_link_invite)
@@ -608,6 +617,9 @@ async def invite(ctx):
 @bot.command(name="revokeinv")
 @commands.has_permissions(ban_members=True)
 async def revokeinvite(ctx, arg, reason="None."):
+    """___category__Server Management___category__
+___parameters__`inv` - The link, or ID of the invite to revoke.___parameters__
+___description__Revokes an invite."""
     arg1 = arg.replace("https://discord.gg/", "")
     delete_invite = await bot.fetch_invite(url=f"https://discord.gg/{arg1}", with_counts=False, with_expiration=False)
     await delete_invite.delete(reason=reason)
