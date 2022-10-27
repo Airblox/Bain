@@ -83,11 +83,11 @@ ___description__Displays the help page."""
                 category = i.callback.__doc__.split("___category__")[1]
                 parameters = i.callback.__doc__.split("___parameters__")[1]
                 docstr = i.callback.__doc__.split("___description__")[1]
-            command_dict.update({i.name: {"description": i.description, "doc": docstr, "category": category, "parameters": parameters}})
+            command_dict.update({i.name: {"doc": docstr, "category": category, "parameters": parameters}})
 
         command_keys = []
         command_info = []
-        for name, info in command_dict.items():
+        for name, info in sorted(command_dict.items()):
             command_keys.append(name)
             command_info.append(info)
 
@@ -107,19 +107,22 @@ ___description__Displays the help page."""
         for category, items in categorised.items():
             categorised[category] = baintools.split_page(items, 5)
 
+        with open("command_category_description_database.json") as file:
+            cat_info = json.load(file)
+
+        categorised = {k: categorised[k] for k in list(cat_info.keys())}
+
         embeds = {}
         options = []
         for page_name, lines in categorised.items():
             # Per category
             for __index, __line in enumerate(lines):
                 # Per page
-                cat_embed = discord.Embed(title=f"Help Page/{page_name}", description="\n\n".join(__line), colour=discord.Colour.blurple()).set_footer(text=f"Page {__index+1}/{len(lines)}")
+                cat_embed = discord.Embed(title=f"Help Page/{page_name}", description="\n\n".join(__line)+"\n\n_Tip: Use .help `command` for more details about a command!_", colour=discord.Colour.blurple()).set_footer(text=f"Page {__index+1}/{len(lines)}").set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734")
                 try:
                     embeds[page_name].append(cat_embed)
                 except KeyError:
                     embeds[page_name] = [cat_embed]
-            with open("command_category_description_database.json") as file:
-                cat_info = json.load(file)
             options.append(discord.SelectOption(label=page_name, description=cat_info[page_name]["description"], emoji=cat_info[page_name]["emoji"]))
 
         select = Select(placeholder="Select a category...", options=options)
@@ -194,7 +197,7 @@ ___description__Displays the help page."""
         view.disable_on_timeout = True
         view.add_item(select)
 
-        await ctx.reply(content=None, embed=discord.Embed(title="Help Page", description="Select a category to begin!", colour=discord.Colour.blurple()), view=view)
+        await ctx.reply(content=None, embed=discord.Embed(title="Help Page", description="Select a category to begin!", colour=discord.Colour.blurple()).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734").set_footer(text="Tip: Use .help <command> for more details about a command!"), view=view)
 
     else:
         target = None
@@ -209,7 +212,7 @@ ___description__Displays the help page."""
             return
         docstr = target.callback.__doc__.split("___description__")[1]
 
-        await ctx.reply(content=None, embed=discord.Embed(title=f"{bot.command_prefix}{target.qualified_name}", description=f"*{docstr}*", colour=discord.Colour.blurple()).add_field(name="Parameters", value=parameters))
+        await ctx.reply(content=None, embed=discord.Embed(title=f"{bot.command_prefix}{target.qualified_name}", description=f"*{docstr}*", colour=discord.Colour.blurple()).add_field(name="Parameters", value=parameters).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/8/85/Texas_Treasures%2C_Part_2.jpg/revision/latest?cb=20221020182240"))
 
 
 # Moderation
@@ -290,7 +293,7 @@ ___description__Kicks a user."""
         await user.kick(reason=reason)
         await ctx.reply(f"Successfully kicked {user.mention}. Reason: ``{ctx.author} - {reason}``")
 
-@bot.command(description="Bans a user from the server.", category="Moderation", parameters="`user` - The user to ban.\n`reason` - [Optional] The reason for the ban.")
+@bot.command(description="Bans a user from the server.")
 @commands.has_permissions(moderate_members=True)
 async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=None):
     """___category__Moderation___category__
@@ -309,7 +312,7 @@ ___description__Bans a user."""
             await ctx.reply(
                 f"Successfully banned {user.mention} (messages were not cleared). Reason: ``{ctx.author} - {reason}``")
 
-@bot.command(description="Unbans a user from the server.", category="Moderation", parameters="`user` - The user to unban.\n`reason` - [Optional] The reason for the unban.")
+@bot.command(description="Unbans a user from the server.")
 @commands.has_permissions(moderate_members=True)
 async def unban(ctx, user: discord.User = None, reason=None):
     """___category__Moderation___category__
@@ -322,7 +325,7 @@ ___description__Unbans a user."""
         await ctx.guild.unban(user=user, reason=reason)
         await ctx.reply(f"Successfully unbanned {user.mention} from the server. Reason: ``{ctx.author} - {reason}``")
 
-@bot.command(description="Kicks members who have been inactive.", category="Moderation", parameters="`duration` - The amount of **days** for the prune to take effect (default: 7).\n`reason` - [Optional, **Wrap in quotes.**] The reason for the prune.\n`*roles` - (Seperate by space) Roles to include in the prune.")
+@bot.command(description="Kicks members who have been inactive.")
 @commands.has_permissions(moderate_members=True)
 async def prune(ctx, duration=7, reason="None.", *roles):
     """___category__Moderation___category__
@@ -338,7 +341,7 @@ ___description__Prunes members - kicks members who have been inactive."""
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def addrole(ctx, *role_name):
-        """___category__Server Management___category__
+    """___category__Server Management___category__
 ___parameters__`role_name` - The name of the role to create.___parameters__
 ___description__Adds a role with permission options."""
     rolename = " ".join(role_name)
@@ -628,6 +631,9 @@ ___description__Revokes an invite."""
 # Tools
 @bot.command()
 async def ping(ctx):
+    """___category__Tools___category__
+___parameters__None.___parameters__
+___description__Responds with the bot's latency."""
     pingembed = discord.Embed(
         title="Pong!",
         description=f"Latency: {round(bot.latency * 1000)} ms.",
@@ -636,7 +642,10 @@ async def ping(ctx):
     await ctx.reply(embed=pingembed)
 
 @bot.command(name="wiki")
-async def wikipedia(ctx, *args):
+async def cmd_wikipedia(ctx, *args):
+    """___category__Tools___category__
+___parameters__`subject` - The thing to search on Wikipedia.___parameters__
+___description__Gets a result from Wikipedia."""
     search_keyword = " ".join(args)
     search_wait = await ctx.reply(f"*Searching \"{search_keyword}\" on Wikipedia...*")
     try:
@@ -658,6 +667,9 @@ async def wikipedia(ctx, *args):
 
 @bot.command()
 async def define(ctx, *args):
+    """___category__Tools___category__
+___parameters__`term` - The word to search up in the dictionary.___parameters__
+___description__Searches up a word in the dictionary."""
     arg = " ".join(args)
     async with ctx.typing():
         result2 = await dictsearch(arg)
@@ -713,6 +725,13 @@ async def define(ctx, *args):
 
 @bot.command()
 async def poll(ctx, name, *args):
+    """___category__Tools___category__
+___parameters__
+**Quick Note:** The poll automatically ends after 5 minutes of inactivity. Results will automatically be sent out through a new message.
+
+`title` - **Wrap in quotes.** The title of the poll.
+`*options` - The options for the poll, separated with a comma.___parameters__
+___description__Creates a poll for everyone to vote in the server."""
     name = name.replace(",", "")
     args_list = []
     current_arg = ""
@@ -755,15 +774,21 @@ async def poll(ctx, name, *args):
             counted_dict = Counter(count_list)
             prepared_poll = ""
             try:
-                winning = str(max(counted_dict))
+                winning = \
+                list({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})[0]
             except ValueError:
                 winning = "None."
                 prepared_poll = "No votes."
+
             tie = len(set(counted_dict.values()))
 
             if tie == 1:
-                if len(counted_dict) > 1:
+                if len(counted_dict) > 1:  # Check if there are multiple options.
                     winning = "Tie!"
+            elif len(counted_dict) != tie:  # Check if they are not tie.
+                if list(counted_dict.values()).count(
+                        max(set(counted_dict.values()))) > 1:  # Check for tie-winning options.
+                    winning = f"Tie - {', '.join({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})}"
 
             j_count = 0
             counted_dict_copy = copy.copy(counted_dict)
@@ -774,33 +799,79 @@ async def poll(ctx, name, *args):
                 j_count += 1
 
             if prepared_poll != "No votes.":
-                prepared_poll = str(counted_dict_copy).replace('Counter(', '').replace(')', '').replace('{',
-                                                                                                        '').replace('}',
-                                                                                                                    '').replace(
-                    '\'', '')
+                prepared_poll = "**" + str(counted_dict_copy).replace('Counter(', '').replace(')', '').replace('{', '').replace('}', '').replace('\'', '').replace(", ", "\n**").replace(":", ":**")
 
-            poll_embed = discord.Embed(
+            poll_new_embed = discord.Embed(
                 title=f"POLL: \"{name}\" - Results",
-                description=f"**Winning Vote: {winning}\n**{prepared_poll}",
+                description=f"**Winning Vote: {winning}**\n\n{prepared_poll}",
                 color=discord.Colour.green()
             )
-            await interaction.response.edit_message(content=None, view=None, embed=poll_embed)
+            poll_view.on_timeout = None
+            await interaction.response.send_message(content=f"{ctx.author.mention}, your poll results are out:", view=None, embed=poll_new_embed)
+            await interaction.message.delete()
         elif interaction.user != ctx.author:
             await interaction.response.send_message("This poll isn't created by you!", ephemeral=True)
+
+    async def poll_timeout():
+        option_list = list(args_list)
+        count_list = castedvotes.values()
+        counted_dict = Counter(count_list)
+        prepared_poll = ""
+        try:
+            winning = list({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})[0]
+        except ValueError:
+            winning = "None."
+            prepared_poll = "No votes."
+
+        tie = len(set(counted_dict.values()))
+
+        if tie == 1:
+            if len(counted_dict) > 1:  # Check if there are multiple options.
+                winning = "Tie!"
+        elif len(counted_dict) != tie:  # Check if they are not tie.
+            if list(counted_dict.values()).count(max(set(counted_dict.values()))) > 1:  # Check for tie-winning options.
+                winning = f"Tie - {', '.join({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})}"
+
+        j_count = 0
+        counted_dict_copy = copy.copy(counted_dict)
+
+        for j in counted_dict_copy.keys():
+            counted_dict[str(j)] = counted_dict[option_list[j_count]]
+            del counted_dict[str(j)]
+            j_count += 1
+
+        if prepared_poll != "No votes.":
+            prepared_poll = "**" + str(counted_dict_copy).replace('Counter(', '').replace(')', '').replace('{', '').replace('}', '').replace('\'', '').replace(", ", "\n**").replace(":", ":**")
+
+        poll_new_embed = discord.Embed(
+            title=f"POLL: \"{name}\" - Results",
+            description=f"**Winning Vote: {winning}**\n\n{prepared_poll}",
+            color=discord.Colour.green()
+        )
+        poll_view.clear_items()
+        await ctx.reply(content=f"{ctx.author.mention}, your poll results are out:", embed=poll_new_embed, view=None)
+        await msg.delete()
 
     poll_options.callback = poll_select_callback
     poll_vote.callback = poll_vote_callback
     poll_end.callback = poll_end_callback
 
-    poll_view = View(timeout=None)
+    poll_view = View(timeout=5)
+    poll_view.on_timeout = poll_timeout
     poll_view.add_item(poll_vote)
     poll_view.add_item(poll_options)
     poll_view.add_item(poll_end)
 
-    await ctx.reply(content=None, embed=poll_embed, view=poll_view)
+    msg = await ctx.reply(content=None, embed=poll_embed, view=poll_view)
 
 @bot.command(name="8ball")
 async def _8ball(ctx, *args):
+    """___category__Tools___category__
+___parameters__
+**Quick Note:** Please ask close-ended (yes/no) questions to make the command make sense.
+
+`question` - Your question to ask.___parameters__
+___description__Get responses to your questions."""
     if len(args) != 0:
         possibleanswers = ["It is certain.",  # positive
                            "It is decidely so.",
@@ -829,7 +900,13 @@ async def _8ball(ctx, *args):
 
 @bot.command(name="random")
 async def _random(ctx, *numbers):
-    numbers = [int(i.replace(" ", "")) for i in " ".join(numbers).split(",")]
+    """___category__Tools___category__
+___parameters__
+(You can seperate your numbers with commas.)
+`lower` - Your lower limit for the random number.
+`upper` - Your upper limit for the random number.___parameters__
+___description__Generate a random number."""
+    numbers = [int(i.replace(" ", "")) for i in (" ".join(numbers).split(",") if len(" ".join(numbers).split(",")) > 1 else numbers)]
     embed = discord.Embed(title="CRIME.NET/Random Number Generator", colour=discord.Colour.blurple())
     embed.add_field(name="Result", value="{:,}".format(random.randint(*numbers)), inline=False)
     embed.set_footer(text=f"Lower limit: {'{:,}'.format(numbers[0])}; Upper limit: {'{:,}'.format(numbers[1])}\nProcessing ID: {baintools.generate_transaction_id(10)}")
@@ -869,6 +946,9 @@ The limit for guessing is `±100`."""
 # Trolling
 @bot.command()
 async def nitro(ctx):
+    """___category__General___category__
+___parameters__None.___parameters__
+___description__Generates a fake Nitro claim embed."""
     nitroembed = discord.Embed(
         description=f"**{ctx.author.mention} generated a Nitro link!**",
         color=discord.Colour.nitro_pink()
@@ -904,6 +984,9 @@ async def nitro(ctx):
 
 @bot.command(name="tryitandsee")
 async def _tryitandsee(ctx, user: discord.Member = None):
+    """___category__General___category__
+___parameters__`user (optional)` - The user you want to tell to try and see.___parameters__
+___description__Tell someone to try it and see."""
     if user is None:
         user = ctx.author
     try:
@@ -915,9 +998,12 @@ async def _tryitandsee(ctx, user: discord.Member = None):
 
 @bot.command()
 async def kill(ctx, arg: discord.Member):
+    """___category__General___category__
+___parameters__`user` - The user to kill (verbally).___parameters__
+___description__Kills a user (verbally)."""
     if arg == "me":
         await ctx.send(f"You've committed suicide. Welcome to The Bad Place.")
-    elif arg == "Bain" or arg == "bain" or arg == secrets["bain_id"]:
+    elif arg.lower() in ["bain", secrets["bain_id"], f"<@{secrets['bain_id']}>"]:
         await ctx.send(
             f"You're the dentist. How dare you. I'll get Locke to rescue me, and you'll wait for my revenge!")
     else:
@@ -955,6 +1041,9 @@ async def kill(ctx, arg: discord.Member):
 
 @bot.command()
 async def hack(ctx, user: discord.Member):
+    """___category__General___category__
+___parameters__`user` - The user to hack.___parameters__
+___description__Hacks a user."""
     hack_lobby = discord.Embed(
         title="Welcome to CRIME.NET",
         description="Welcome to crime.net. My name is Bain, and I'll be guiding you throughout your hack. I'm a "
@@ -1443,6 +1532,11 @@ async def hack(ctx, user: discord.Member):
 
 @bot.command()
 async def rickroll(ctx, user: discord.Member = None):
+    """___category__General___category__
+___parameters__**Quick Note:** The rickroll will be sent to everyone. Specifying who to rickroll will ping them in the message sent.
+
+`user (optional)` - The user to rickroll.___parameters__
+___description__Rickrolls a user (and whoever that sees it)."""
     if user is None:
         user = ctx.author
     embed = discord.Embed(title=":)", description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message... Teehee!", colour=discord.Color.blurple())
@@ -1517,7 +1611,7 @@ async def stop(ctx):
     voice.stop()
 
 @bot.command()
-async def play(ctx, song):
+async def play(ctx, *, song):
     await ctx.reply("Gimme a few seconds...")
     try:
         channel = ctx.author.voice.channel
@@ -1552,7 +1646,7 @@ async def _status(ctx):
 @commands.is_owner()
 async def _logout(ctx: commands.Context):
     print(f"Terminating program in {ctx.guild.name} <{datetime.datetime.now()}>...")
-    await ctx.send(f"Program killed by {ctx.author.mention}! I'm going offline now. See you guys at the safehouse.")
+    await ctx.send(f"`Program terminated by {ctx.author.mention} at {datetime.datetime.now()}.`")
     try:
         await ctx.bot.close()
     except Exception as e:
@@ -1593,9 +1687,9 @@ async def _commands(ctx):
 
     await ctx.reply("end")
 
-@bot.command(name="_pycord_ver")
+@bot.command(name="_pyver")
 @commands.is_owner()
-async def _pycord_ver(ctx):
+async def  _pyver(ctx):
     embed = discord.Embed(title="Version Info", colour=discord.Colour.blurple()).add_field(name="Pycord Version", value=discord.__version__, inline=False).add_field(name="Pycord Release Level", value=f"Major: {discord.version_info.major}\nMinor: {discord.version_info.minor}\nMicro: {discord.version_info.micro}\nRelease Level: `{discord.version_info.release_level}`\nSerial: `{discord.version_info.serial}`\nBuild: {discord.version_info.build}\nCommit: `{discord.version_info.commit}`\nDate: {discord.version_info.date}", inline=False).add_field(name="Python version", value=sys.version, inline=False).set_thumbnail(url="https://www.python.org/static/img/python-logo@2x.png")
     await ctx.reply(content=None, embed=embed)
 
@@ -2327,3 +2421,4 @@ def wikisummary(arg):
 
 
 bot.run(secrets["discord_bot_token"])
+print(f"Program terminated at {datetime.datetime.now()}")
