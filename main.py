@@ -2,6 +2,7 @@ import asyncio
 import string
 import subprocess
 import sys
+import traceback
 import coolname
 import discord
 import random
@@ -49,12 +50,38 @@ bot.remove_command("help")
 steam_api_key = secrets["steam_api_key"]
 
 # Error handling
-"""@bot.event
-async def on_command_error(ctx, error):
-    if str(error).endswith("\" is not found"):
-        pass
+@bot.event
+async def on_command_error(ctx: commands.Context, error):
+    if hasattr(ctx.command, 'on_error'):
+        return
+
+    ignored = (commands.CommandNotFound,)
+    error = getattr(error, 'original', error)
+
+    if isinstance(error, ignored):
+        return
+
+    if isinstance(error, commands.DisabledCommand):
+        await ctx.reply(f'{ctx.command} has been disabled.')
+
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.reply(f'Arguments are missing for {ctx.command}.')
+
+    elif isinstance(error, commands.NoPrivateMessage):
+        try:
+            await ctx.author.send(f'{ctx.command} can not be used in Private Messages.')
+        except discord.HTTPException:
+            pass
+
+    elif isinstance(error, commands.BadArgument):
+        await ctx.reply(f'Bad argument passed for {ctx.command}')
+
+    elif isinstance(error, commands.NotOwner):
+        await ctx.reply("Sorry - you are not the owner of this bot.")
+
     else:
-        await ctx.reply(f"An error occured.\n`{error}`")"""
+        print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
 @bot.event
@@ -867,38 +894,35 @@ ___description__Creates a poll for everyone to vote in the server."""
     msg = await ctx.reply(content=None, embed=poll_embed, view=poll_view)
 
 @bot.command(name="8ball")
-async def _8ball(ctx, *args):
+async def _8ball(ctx, arg: str):
     """___category__Tools___category__
 ___parameters__
 **Quick Note:** Please ask close-ended (yes/no) questions to make the command make sense.
 
 `question` - Your question to ask.___parameters__
 ___description__Get responses to your questions."""
-    if len(args) != 0:
-        possibleanswers = ["It is certain.",  # positive
-                           "It is decidely so.",
-                           "Without a doubt.",
-                           "Yes definitely.",
-                           "You may rely on it.",
-                           "As I see it, yes.",
-                           "Most likely.",
-                           "Outlook good.",
-                           "Yes.",
-                           "Signs point to yes.",
-                           "Reply hazy, try again.",  # vague
-                           "Ask again later.",
-                           "Better not tell you now.",
-                           "Cannot predict now.",
-                           "Concentrate and ask again.",
-                           "Don't count on it.",  # negative
-                           "My reply is no.",
-                           "My sources say no.",
-                           "Outlook not so good.",
-                           "Very doubtful."]
+    possibleanswers = ["It is certain.",  # positive
+                       "It is decidely so.",
+                       "Without a doubt.",
+                       "Yes definitely.",
+                       "You may rely on it.",
+                       "As I see it, yes.",
+                       "Most likely.",
+                       "Outlook good.",
+                       "Yes.",
+                       "Signs point to yes.",
+                       "Reply hazy, try again.",  # vague
+                       "Ask again later.",
+                       "Better not tell you now.",
+                       "Cannot predict now.",
+                       "Concentrate and ask again.",
+                       "Don't count on it.",  # negative
+                       "My reply is no.",
+                       "My sources say no.",
+                       "Outlook not so good.",
+                       "Very doubtful."]
 
-        await ctx.reply(random.choice(possibleanswers))
-    else:
-        raise Exception("arg is a required argument that is missing.")
+    await ctx.reply(content=None, embed=discord.Embed(title="8-ball", description=random.choice(possibleanswers), colour=discord.Colour.blurple()).set_footer(text=arg))
 
 @bot.command(name="random")
 async def _random(ctx, *numbers):
@@ -987,7 +1011,7 @@ ___description__Generates a fake Nitro claim embed."""
 @bot.command(name="tryitandsee")
 async def _tryitandsee(ctx, user: discord.Member = None):
     """___category__General___category__
-___parameters__`user (optional)` - The user you want to tell to try and see.___parameters__
+___parameters__`user (optional)` - The user you want to tell "try it and see".___parameters__
 ___description__Tell someone to try it and see."""
     if user is None:
         user = ctx.author
@@ -1624,7 +1648,9 @@ async def play(ctx: commands.Context, *, song: str):
             await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error", description="You are not connected to a voice channel.", colour=discord.Color.red()))
     else:
         spotify_link = song
-        subprocess.call(f"{sys.executable} {spotdl.__file__} download {spotify_link} --output {secrets['os_dir_music']}")
+        log_file = open("Music/#log.txt", "w")
+        subprocess.call(f"{sys.executable} {spotdl.__file__} download {spotify_link} --output {secrets['os_dir_music']}\\#process --path-template {ctx.author.guild.id}_{'{artist} - {title} [{album}]'}", stdout=log_file, stderr=log_file)
+        os.listdir(f"{secrets['os_dir_music']}\\#process")
         source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(f"{secrets['os_dir_music']}\\{ctx.author.guild.id}.mp3"))
 
         channel = ctx.author.voice.channel
@@ -1656,7 +1682,7 @@ async def _logout(ctx: commands.Context):
         print(f"An error occurred.\n{e}")
         return
 
-@bot.command(name="_generate_inv")
+@bot.command(name="_geninv")
 @commands.is_owner()
 async def _gen_inv(ctx, id: int):
     if id is None:
@@ -1692,7 +1718,7 @@ async def _commands(ctx):
 
 @bot.command(name="_pyver")
 @commands.is_owner()
-async def  _pyver(ctx):
+async def _pyver(ctx):
     embed = discord.Embed(title="Version Info", colour=discord.Colour.blurple()).add_field(name="Pycord Version", value=discord.__version__, inline=False).add_field(name="Pycord Release Level", value=f"Major: {discord.version_info.major}\nMinor: {discord.version_info.minor}\nMicro: {discord.version_info.micro}\nRelease Level: `{discord.version_info.release_level}`\nSerial: `{discord.version_info.serial}`\nBuild: {discord.version_info.build}\nCommit: `{discord.version_info.commit}`\nDate: {discord.version_info.date}", inline=False).add_field(name="Python version", value=sys.version, inline=False).set_thumbnail(url="https://www.python.org/static/img/python-logo@2x.png")
     await ctx.reply(content=None, embed=embed)
 
