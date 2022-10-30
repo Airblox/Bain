@@ -1,5 +1,6 @@
 import asyncio
 import string
+import subprocess
 import sys
 import coolname
 import discord
@@ -15,6 +16,7 @@ import json
 import os
 import randomjob
 import baintools
+import spotdl.__main__ as spotdl
 import secrets as secret_files
 
 from datetime import date
@@ -1611,30 +1613,31 @@ async def stop(ctx):
     voice.stop()
 
 @bot.command()
-async def play(ctx, *, song):
-    await ctx.reply("Gimme a few seconds...")
+async def play(ctx: commands.Context, *, song: str):
+    origin_msg = await ctx.reply("Gimme a few seconds...")
     try:
-        channel = ctx.author.voice.channel
-        await channel.connect()
+        if ctx.author.voice.channel is None:
+            raise ValueError("'NoneType' object has no attribute 'channel'")
     except Exception as e:
         if str(e) == "'NoneType' object has no attribute 'channel'":
-            await ctx.reply("You are not connected to a voice channel.")
+            await origin_msg.delete()
+            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error", description="You are not connected to a voice channel.", colour=discord.Color.red()))
     else:
-        # Create playlist
-        spotdlsong = f"spotdl {song}"
-        spotdlpath = f"{secrets['os_dir']}\\Music\\{ctx.author.guild.id}"
+        spotify_link = song
+        subprocess.call(f"{sys.executable} {spotdl.__file__} download {spotify_link} --output {secrets['os_dir_music']}")
+        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(f"{secrets['os_dir_music']}\\{ctx.author.guild.id}.mp3"))
 
-        if not os.path.exists(spotdlpath):
-            os.makedirs(spotdlpath)
+        channel = ctx.author.voice.channel
+        try:
+            connection = await channel.connect()
+        except discord.errors.ClientException:
+            await origin_msg.delete()
+            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error", description="Audio is already playing in a voice channel.", colour=discord.Color.red()))
+        else:
+            connection.play(source)
 
-        spotdlout = "'1%-{artist}-{album}-{title}.{ext}'"
-        os.system(f"{spotdlsong} --output {spotdlpath}")
-
-        voiceChannel = discord.utils.get(ctx.guild.voice_channels)
-        voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
-        voiceChannel.play(discord.FFmpegPCMAudio(
-            "Olivia Rodrigo, Joshua Bassett, Disney - Even WhenThe Best Part - From 'High School Musical -  The Musical -  The Series (Season 2).mp3"),
-            after=lambda e: print("done", e))
+            await origin_msg.delete()
+            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player", description=f"Now playing: {song}", colour=discord.Color.blurple()))
 
 # Owner-only.
 @bot.command()
