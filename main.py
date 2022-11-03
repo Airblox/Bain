@@ -3,7 +3,6 @@ import string
 import subprocess
 import sys
 import traceback
-import typing
 import coolname
 import discord
 import random
@@ -2288,6 +2287,7 @@ async def balance(ctx, user: discord.Member = None):
     data = (await player_database())[str(user.id)]
     cash = data['cash']
     offshore = data['offshore']
+    continental = data['continental_coins']
     item_worth = 0
     for attr, val in data.items():
         try:
@@ -2296,7 +2296,7 @@ async def balance(ctx, user: discord.Member = None):
         except (KeyError, TypeError):
             pass
 
-    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${baintools.format_number(cash)}\n**Offshore Account:** ${baintools.format_number(offshore)} [Total: ${baintools.format_number(cash+offshore)}]\n**Item Worth:** ${baintools.format_number(item_worth*0.25)}\n\n**Net Worth:** ${baintools.format_number(cash+offshore+(item_worth*0.25))}", colour=discord.Colour.blurple())
+    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${baintools.format_number(cash)}\n**Offshore Account:** ${baintools.format_number(offshore)}\n**Continental Coins:** {continental} [Total: ${baintools.format_number(cash+offshore+(offshore*10000))}]\n**Item Worth:** ${baintools.format_number(item_worth*0.25)}\n\n**Net Worth:** ${baintools.format_number(cash+offshore+(item_worth*0.25))}", colour=discord.Colour.blurple())
     await ctx.reply(content=None, embed=embed)
 
 @bot.command(name="bal")
