@@ -3,6 +3,7 @@ import string
 import subprocess
 import sys
 import traceback
+import typing
 import coolname
 import discord
 import random
@@ -17,8 +18,8 @@ import json
 import os
 import randomjob
 import baintools
-import spotdl.__main__ as spotdl
-import secrets as secret_files
+import spotdl.__main__
+import pr_secrets
 
 from datetime import date
 from collections import Counter
@@ -31,25 +32,25 @@ from baintools import PlayerInfo, PlayerHeist
 print(f"INITIALIZE AT {datetime.datetime.now()}\n")
 print("CRIME.NET CONNECTION\nSTATUS CODE: 200\n>>> Fetching server information...")
 
-# Secrets
-def get_secrets():
-    dicts = {}
-    for item in dir(secret_files):
-        if not item.startswith("__"):
-            dicts[item] = getattr(secret_files, item)[0] if type(getattr(secret_files, item)) == tuple else getattr(secret_files, item)
+os.chdir(pr_secrets.os_dir)
 
-    return dicts
-
-
-secrets = get_secrets()
-os.chdir(secrets["os_dir"])
-
-bot = commands.Bot(command_prefix=".", intents=discord.Intents.all(), owner_id=secrets["owner_id"], auto_sync_commands=True)
+bot = commands.Bot(command_prefix=".", intents=discord.Intents.all(), owner_id=pr_secrets.owner_id, auto_sync_commands=True)
 bot.remove_command("help")
 
-steam_api_key = secrets["steam_api_key"]
+steam_api_key = pr_secrets.steam_api_key
 
-# Error handling
+# Events
+@bot.event
+async def on_ready():
+    await bot.change_presence(status=discord.Status.online, activity=discord.Game(name="CRIME.NET | .help"))
+    guild_count = 0
+    print(f">>> Server info <{datetime.datetime.now()}>")
+    for guild in bot.guilds:
+        print(f"- {guild.name} ({guild.owner}, {guild.id}).")
+        guild_count = guild_count + 1
+
+    print(f"(In {guild_count} servers in total.)\n\nBain is online. Run \"._logout\" to get Bain offline.")
+
 @bot.event
 async def on_command_error(ctx: commands.Context, error):
     if hasattr(ctx.command, 'on_error'):
@@ -76,6 +77,12 @@ async def on_command_error(ctx: commands.Context, error):
     elif isinstance(error, commands.BadArgument):
         await ctx.reply(f'Bad argument passed for {ctx.command}')
 
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.reply(f'Sorry - you do not have the permissions for using {ctx.command}.')
+
+    elif isinstance(error, discord.errors.Forbidden):
+        await ctx.reply(content=f"Sorry - `{error}`")
+
     elif isinstance(error, commands.NotOwner):
         await ctx.reply("Sorry - you are not the owner of this bot.")
 
@@ -83,18 +90,22 @@ async def on_command_error(ctx: commands.Context, error):
         print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
-
 @bot.event
-async def on_ready():
-    await bot.change_presence(status=discord.Status.online, activity=discord.Game(name="CRIME.NET | .help"))
-    guild_count = 0
-    print(f">>> Server info <{datetime.datetime.now()}>")
-    for guild in bot.guilds:
-        print(f"- {guild.name} ({guild.owner}, {guild.id}).")
-        guild_count = guild_count + 1
-
-    print(f"(In {guild_count} servers in total.)\n\nBain is online. Run \"._logout\" to get Bain offline.")
-
+async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+    if not member.id == pr_secrets.bain_id:
+        return
+    elif before.channel is None:
+        voice: discord.VoiceClient = after.channel.guild.voice_client
+        time = 0
+        while True:
+            await asyncio.sleep(1)
+            time += 1
+            if voice.is_playing():
+                time = 0
+            if time == 30:
+                await voice.disconnect(force=True)
+            if not voice.is_connected():
+                break
 
 @bot.command(name="help")
 async def _help(ctx: commands.Context, command=None):
@@ -847,7 +858,7 @@ ___description__Creates a poll for everyone to vote in the server."""
         counted_dict = Counter(count_list)
         prepared_poll = ""
         try:
-            winning = list({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})[0]
+            winning = list({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})
         except ValueError:
             winning = "None."
             prepared_poll = "No votes."
@@ -934,8 +945,8 @@ ___parameters__
 ___description__Generate a random number."""
     numbers = [int(i.replace(" ", "")) for i in (" ".join(numbers).split(",") if len(" ".join(numbers).split(",")) > 1 else numbers)]
     embed = discord.Embed(title="CRIME.NET/Random Number Generator", colour=discord.Colour.blurple())
-    embed.add_field(name="Result", value="{:,}".format(random.randint(*numbers)), inline=False)
-    embed.set_footer(text=f"Lower limit: {'{:,}'.format(numbers[0])}; Upper limit: {'{:,}'.format(numbers[1])}\nProcessing ID: {baintools.generate_transaction_id(10)}")
+    embed.add_field(name="Result", value=baintools.format_number(random.randint(*numbers)), inline=False)
+    embed.set_footer(text=f"Lower limit: {baintools.format_number(numbers[0])}; Upper limit: {baintools.format_number(numbers[1])}\nProcessing ID: {baintools.generate_transaction_id(10)}")
     await ctx.reply(content=None, embed=embed)
 
 @bot.command()
@@ -967,7 +978,6 @@ The limit for guessing is `±100`."""
         diff = "Tie! That's... really rare!"
 
     await ctx.reply(content=None, embed=discord.Embed(title="Number Guessing", description=f"**Your guess:** {arg}\n**Bain's guess:** {bot_guess}\n\n*{diff}*", colour=discord.Color.blurple()))
-
 
 # Trolling
 @bot.command()
@@ -1023,13 +1033,13 @@ ___description__Tell someone to try it and see."""
         await ctx.message.delete()
 
 @bot.command()
-async def kill(ctx, arg: discord.Member):
+async def kill(ctx, *, arg: str):
     """___category__General___category__
 ___parameters__`user` - The user to kill (verbally).___parameters__
 ___description__Kills a user (verbally)."""
-    if arg == "me":
+    if arg == "me" or arg == ctx.author.mention:
         await ctx.send(f"You've committed suicide. Welcome to The Bad Place.")
-    elif arg.lower() in ["bain", secrets["bain_id"], f"<@{secrets['bain_id']}>"]:
+    elif arg.lower() in ["bain", pr_secrets.bain_id, f"<@{pr_secrets.bain_id}>"]:
         await ctx.send(
             f"You're the dentist. How dare you. I'll get Locke to rescue me, and you'll wait for my revenge!")
     else:
@@ -1082,7 +1092,7 @@ ___description__Hacks a user."""
     hack_pc = Button(label="Computer hack", style=discord.ButtonStyle.blurple)
 
     async def hack_bank_callback(interaction):
-        if interaction.user == ctx.author and user.mention != secrets["owner_id"] and user.mention != secrets["bain_id"]:
+        if interaction.user == ctx.author and user.mention != pr_secrets.owner_id and user.mention != pr_secrets.bain_id:
             bank_embed = discord.Embed(
                 title="Bank Hack",
                 description=f"Bain: ``Starting hack...``",
@@ -1107,7 +1117,7 @@ ___description__Hacks a user."""
                                  value=f"Username: {str(user).replace('#', '')}\nPassword: {password}")
             await interaction.edit_original_message(content=None, attachments=[], embed=bank_embed, view=None)
             await asyncio.sleep(2)
-            balance = "{:,}".format(random.randint(-1000, 100000))
+            balance = baintools.format_number(random.randint(-1000, 100000))
             phone = f"+1 {random.randint(0, 999):03} {random.randint(0, 999):03} {random.randint(0, 9999):04}"
             bank_embed = discord.Embed(
                 title="Bank Hack",
@@ -1221,17 +1231,17 @@ ___description__Hacks a user."""
             bank_acc_id = f"{random.randint(100000, 999999):04}"
             bank_embed.set_footer(text=f"Money has been transferred to {ctx.author} (ID: {bank_acc_id}).")
             await interaction.edit_original_message(content=None, attachments=[], embed=bank_embed, view=None)
-        elif interaction.user == ctx.author and user.mention == secrets["owner_id"]:
+        elif interaction.user == ctx.author and user.mention == pr_secrets.owner_id:
             await interaction.response.edit_message(content="``Couldn't hack him. Perhaps try someone else?``",
                                                     embed=None, view=None)
-        elif interaction.user == ctx.author and user.mention == secrets["bain_id"]:
+        elif interaction.user == ctx.author and user.mention == pr_secrets.bain_id:
             await interaction.response.edit_message(content="``Couldn't hack him. Perhaps try someone else?``",
                                                     embed=None, view=None)
         elif interaction.user != ctx.author:
             await interaction.response.send_message("This hack isn't for you!", ephemeral=True)
 
     async def hack_id_callback(interaction):
-        if interaction.user == ctx.author and user.mention != secrets["owner_id"] and user.mention != secrets["bain_id"]:
+        if interaction.user == ctx.author and user.mention != pr_secrets.owner_id and user.mention != pr_secrets.bain_id:
             id_embed = discord.Embed(title="Identity Hack",
                                      description=f"Bain: ``Starting hack...``",
                                      color=discord.Color.blurple())
@@ -1363,17 +1373,17 @@ ___description__Hacks a user."""
             id_embed.add_field(name="Profile",
                                value=f"Name: {newname}\nGender: {gender}\nBirth: {birthdate}\nAge: {str(newage)}")
             await interaction.edit_original_message(content=None, embed=id_embed, view=None)
-        elif interaction.user == ctx.author and user.mention == secrets["owner_id"]:
+        elif interaction.user == ctx.author and user.mention == pr_secrets.owner_id:
             await interaction.response.edit_message(content="``Couldn't hack him. Perhaps try someone else?``",
                                                     embed=None, view=None)
-        elif interaction.user == ctx.author and user.mention == secrets["bain_id"]:
+        elif interaction.user == ctx.author and user.mention == pr_secrets.bain_id:
             await interaction.response.edit_message(content="``Couldn't hack him. Perhaps try someone else?``",
                                                     embed=None, view=None)
         elif interaction.user != ctx.author:
             await interaction.response.send_message("This hack isn't for you!", ephemeral=True)
 
     async def hack_pc_callback(interaction):
-        if interaction.user == ctx.author and user.mention != secrets["owner_id"] and user.mention != secrets["bain_id"]:
+        if interaction.user == ctx.author and user.mention != pr_secrets.owner_id and user.mention != pr_secrets.bain_id:
             pc_embed = discord.Embed(
                 title="Computer Hack",
                 description=f"Bain: ``Starting hack...``",
@@ -1535,10 +1545,10 @@ ___description__Hacks a user."""
 
 
 
-        elif interaction.user == ctx.author and user.mention == secrets["owner_id"]:
+        elif interaction.user == ctx.author and user.mention == pr_secrets.owner_id:
             await interaction.response.edit_message(content="``Couldn't hack him. Perhaps try someone else?``",
                                                     embed=None, view=None)
-        elif interaction.user == ctx.author and user.mention == secrets["bain_id"]:
+        elif interaction.user == ctx.author and user.mention == pr_secrets.bain_id:
             await interaction.response.edit_message(content="``Couldn't hack him. Perhaps try someone else?``",
                                                     embed=None, view=None)
         elif interaction.user != ctx.author:
@@ -1573,7 +1583,6 @@ ___description__Rickrolls a user (and whoever that sees it)."""
 
 # Voice
 @bot.command()
-@commands.has_permissions(moderate_members=True)
 async def join(ctx):
     try:
         channel = ctx.author.voice.channel
@@ -1589,7 +1598,6 @@ async def join(ctx):
             await ctx.reply(f"An error occured.\nError: `{e}`")
 
 @bot.command()
-@commands.has_permissions(moderate_members=True)
 async def leave(ctx):
     try:
         await ctx.guild.voice_client.disconnect()
@@ -1609,36 +1617,15 @@ async def disconnect(ctx, user: discord.Member, reason=None):
         await ctx.reply("An error occured.")
 
 @bot.command()
-@commands.has_permissions(moderate_members=True)
-async def pause(ctx):
-    voice = discord.VoiceClient(channel=ctx.author.voice.channel, client=bot)
-    try:
-        voice.pause()
-        await ctx.reply("Audio already paused/no audio is playing.")
-    except Exception as e:
-        await ctx.reply(f"Error: `{e}`")
-
-@bot.command()
-@commands.has_permissions(moderate_members=True)
-async def resume(ctx):
-    voice = discord.VoiceClient(channel=ctx.author.voice.channel, client=bot)
-    try:
-        if voice.is_paused():
-            voice.resume()
-        else:
-            await ctx.reply("Already resumed/no audio is playing.")
-    except Exception as e:
-        await ctx.reply(f"Error: `{e}`")
-
-@bot.command()
-@commands.has_permissions(moderate_members=True)
 async def stop(ctx):
-    voice = discord.VoiceClient(channel=ctx.author.voice.channel, client=bot)
-    voice.stop()
+    await ctx.invoke(leave)
 
 @bot.command()
 async def play(ctx: commands.Context, *, song: str):
-    origin_msg = await ctx.reply("Gimme a few seconds...")
+    if song.startswith("https://open.spotify.com/album"):
+        await ctx.reply("You can only play songs, not albums for now. (Skill issue.)")
+        return
+    origin_msg = await ctx.reply("`Initializing...`")
     try:
         if ctx.author.voice.channel is None:
             raise ValueError("'NoneType' object has no attribute 'channel'")
@@ -1647,80 +1634,49 @@ async def play(ctx: commands.Context, *, song: str):
             await origin_msg.delete()
             await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error", description="You are not connected to a voice channel.", colour=discord.Color.red()))
     else:
-        spotify_link = song
-        log_file = open("Music/#log.txt", "w")
-        subprocess.call(f"{sys.executable} {spotdl.__file__} download {spotify_link} --output {secrets['os_dir_music']}\\#process --path-template {ctx.author.guild.id}_{'{artist} - {title} [{album}]'}", stdout=log_file, stderr=log_file)
-        os.listdir(f"{secrets['os_dir_music']}\\#process")
-        source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(f"{secrets['os_dir_music']}\\{ctx.author.guild.id}.mp3"))
-
-        channel = ctx.author.voice.channel
+        async with ctx.typing():
+            await origin_msg.edit(content="`Updating path...`")
+            spotify_link = song
+            log_file = open("Music/#log.txt", "w")
+            list_of_files = os.listdir("Music")
+            for i in list_of_files:
+                if i.startswith(str(ctx.author.guild.id)):
+                    try:
+                        os.remove(pr_secrets.os_dir_music+"\\"+i)
+                    except PermissionError:
+                        pass
+        async with ctx.typing():
+            await origin_msg.edit(content="`Downloading song...`")
+            subprocess.Popen(f"{sys.executable} {spotdl.__main__.__file__} download \"{spotify_link}\" --output \"{pr_secrets.os_dir_music}\\{ctx.author.guild.id}{'___{artists} - {title}.{output-ext}'}\" --overwrite force", stdout=log_file, stderr=log_file, shell=True)
+            time = 0
+            while True:
+                await asyncio.sleep(1)
+                time += 1
+                try:
+                    file = [i for i in os.listdir(pr_secrets.os_dir_music) if i.startswith(str(ctx.author.guild.id))][0]
+                except IndexError:
+                    if time >= 60:
+                        await throw_crimenet_error(ctx, 400, "`**TIMEOUT** - `Download failed - likely because of a lookup error: Spotify couldn't find your song.")
+                        return
+                    else:
+                        continue
+                else:
+                    break
+            source = discord.PCMVolumeTransformer(discord.FFmpegPCMAudio(f"{pr_secrets.os_dir_music}\\{file}"))
+            channel = ctx.author.voice.channel
         try:
-            connection = await channel.connect()
+            async with ctx.typing():
+                await origin_msg.edit(content="`Connecting...`")
+                connection = await channel.connect()
         except discord.errors.ClientException:
             await origin_msg.delete()
             await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error", description="Audio is already playing in a voice channel.", colour=discord.Color.red()))
         else:
-            connection.play(source)
+            async with ctx.typing():
+                connection.play(source)
 
             await origin_msg.delete()
-            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player", description=f"Now playing: {song}", colour=discord.Color.blurple()))
-
-# Owner-only.
-@bot.command()
-@commands.is_owner()
-async def _status(ctx):
-    await ctx.reply(f"Online! Running.")
-
-@bot.command()
-@commands.is_owner()
-async def _logout(ctx: commands.Context):
-    print(f"Terminating program in {ctx.guild.name} <{datetime.datetime.now()}>...")
-    await ctx.send(f"`Program terminated by {ctx.author.mention} at {datetime.datetime.now()}.`")
-    try:
-        await ctx.bot.close()
-    except Exception as e:
-        print(f"An error occurred.\n{e}")
-        return
-
-@bot.command(name="_geninv")
-@commands.is_owner()
-async def _gen_inv(ctx, id: int):
-    if id is None:
-        id = ctx.guild.id
-    await ctx.message.delete()
-    guild = bot.get_guild(id)
-    user = ctx.author
-
-    name = guild.name
-    avatar = guild.icon
-    owner = guild.owner
-    member_count = guild.approximate_member_count
-    online_count = guild.approximate_presence_count
-    channel = await guild.text_channels[0].create_invite(max_age=0, max_uses=1, temporary=False, unique=False)
-
-    embed = discord.Embed(title=f"Invite Link for {name}")
-    embed.set_thumbnail(url=str(avatar))
-    embed.add_field(name="Owner", value=f"{owner} (ID: {owner.id})", inline=False)
-    embed.add_field(name="No. of members", value=f"{member_count}", inline=False)
-    embed.add_field(name="No. of **online** members", value=f"```diff\n{online_count}\n```", inline=False)
-
-    dm = await user.create_dm()
-    await dm.send(content=f"{str(channel.url)}", embed=embed)
-
-@bot.command(name="_commands")
-@commands.is_owner()
-async def _commands(ctx):
-    pages = baintools.split_page([i.name for i in bot.commands], 5)
-    for i in pages:
-        await ctx.reply(i)
-
-    await ctx.reply("end")
-
-@bot.command(name="_pyver")
-@commands.is_owner()
-async def _pyver(ctx):
-    embed = discord.Embed(title="Version Info", colour=discord.Colour.blurple()).add_field(name="Pycord Version", value=discord.__version__, inline=False).add_field(name="Pycord Release Level", value=f"Major: {discord.version_info.major}\nMinor: {discord.version_info.minor}\nMicro: {discord.version_info.micro}\nRelease Level: `{discord.version_info.release_level}`\nSerial: `{discord.version_info.serial}`\nBuild: {discord.version_info.build}\nCommit: `{discord.version_info.commit}`\nDate: {discord.version_info.date}", inline=False).add_field(name="Python version", value=sys.version, inline=False).set_thumbnail(url="https://www.python.org/static/img/python-logo@2x.png")
-    await ctx.reply(content=None, embed=embed)
+            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player", description=f"Now playing: **{[i for i in os.listdir(pr_secrets.os_dir_music) if i.startswith(str(ctx.author.guild.id))][0].split(str(ctx.author.guild.id)+'___')[1].replace('.mp3', '')}**", colour=discord.Color.blurple()))
 
 # Player system/Currency MAIN
 @bot.command()
@@ -1752,7 +1708,7 @@ async def shop(ctx):
             description = ""
             for item in items_in_page:
                 # For every item in the page. Do stuff every item.
-                description += f"{item['emoji']} **{item['name']}** ({item['category']})\n*{item['desc']}*\n${'{:,}'.format(item['cost'])}\n\n"
+                description += f"{item['emoji']} **{item['name']}** ({item['category']})\n*{item['desc']}*\n${baintools.format_number(item['cost'])}\n\n"
             embed = discord.Embed(title=f"CRIME.NET/Blackmarket/{cat_info['name']}", description=f"_Use `{bot.command_prefix}item` for more information about an item._\n\n"+description, colour=discord.Colour.blurple()).set_footer(text=f"Page {page_count+1}/{len(split_pages)}")
             embeds[cat_info['name']].append(embed)
             page_count += 1
@@ -1852,7 +1808,7 @@ async def buy(ctx, *args):
     if data[str(ctx.author.id)]["cash"] >= cost:
         if amount > 1:
             embed = discord.Embed(title="Blackmarket",
-                                  description=f"Are you sure you want to buy {'{:,}'.format(amount)}x {items[key]['name']}?",
+                                  description=f"Are you sure you want to buy {baintools.format_number(amount)}x {items[key]['name']}?",
                                   colour=discord.Colour.blurple()).set_thumbnail(url=items[key]["image_link"])
             button_confirm = Button(label="Confirm", style=discord.ButtonStyle.blurple)
             button_cancel = Button(label="Cancel", style=discord.ButtonStyle.red)
@@ -1863,7 +1819,7 @@ async def buy(ctx, *args):
                     data[str(ctx.author.id)]["cash"] -= cost
                     data[str(ctx.author.id)][key] += amount
                     await player_save(data)
-                    new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {'{:,}'.format(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${'{:,}'.format(items[key]['data']['cost']*amount)}", colour=discord.Color.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
+                    new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {baintools.format_number(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${baintools.format_number(items[key]['data']['cost']*amount)}", colour=discord.Color.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
                     await interaction.followup.edit_message(message_id=interaction.message.id, embed=new_embed, view=None)
 
             async def button_cancel_callback(interaction: discord.Interaction):
@@ -1882,7 +1838,7 @@ async def buy(ctx, *args):
             data[str(ctx.author.id)]["cash"] -= cost
             data[str(ctx.author.id)][key] += amount
             await player_save(data)
-            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {'{:,}'.format(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${'{:,}'.format(items[key]['data']['cost'])}", colour=discord.Colour.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
+            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {baintools.format_number(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${baintools.format_number(items[key]['data']['cost'])}", colour=discord.Colour.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
             await ctx.reply(embed=new_embed, view=None)
         else:
             await throw_crimenet_error(ctx, 400, "Invalid amount.")
@@ -1940,7 +1896,7 @@ async def sell(ctx, *args):
         data[str(ctx.author.id)][key] -= 1
         data[str(ctx.author.id)]["cash"] += (sell_data["data"]["cost"] * 0.25).__floor__()
         await player_save(data)
-        embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{'{:,}'.format(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${'{:,}'.format((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
+        embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{baintools.format_number(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
         await ctx.reply(content=None, embed=embed)
     elif amount > 1:
         button_confirm = Button(label="Confirm", style=discord.ButtonStyle.blurple)
@@ -1950,7 +1906,7 @@ async def sell(ctx, *args):
             data[str(ctx.author.id)][key] -= amount
             data[str(ctx.author.id)]["cash"] += (sell_data["data"]["cost"] * 0.25 * amount).__floor__()
             await player_save(data)
-            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{'{:,}'.format(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${'{:,}'.format((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
+            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{baintools.format_number(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
             await interaction.response.edit_message(embed=new_embed, view=None)
 
         async def button_cancel_callback(interaction: discord.Interaction):
@@ -1962,7 +1918,7 @@ async def sell(ctx, *args):
         view.disable_on_timeout = True
         view.add_item(button_confirm)
         view.add_item(button_cancel)
-        confirmation_embed = discord.Embed(title="Blackmarket/Transaction/Pending", description=f"Are you sure you want to sell **{'{:,}'.format(amount)}x {sell_data['name']}**?\n\nYou will be paid **${'{:,}'.format((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour=discord.Colour.blurple())
+        confirmation_embed = discord.Embed(title="Blackmarket/Transaction/Pending", description=f"Are you sure you want to sell **{baintools.format_number(amount)}x {sell_data['name']}**?\n\nYou will be paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour=discord.Colour.blurple())
         await ctx.reply(embed=confirmation_embed, view=view)
     else:
         await throw_crimenet_error(ctx, 400, "Invalid amount.")
@@ -1979,15 +1935,15 @@ async def inspect(ctx, *item_name):
         await throw_crimenet_error(ctx, 400, "Invalid weapon.")
     else:
         data = await get_item(item)
-        description = f"**({'{:,}'.format(player[item])} owned)**\n{data['description']}\n\n**Category:** {(await get_category_desc(data['category']))['name']} - {data['type']}, {string.capwords(data['slot'])}\n"
+        description = f"**({baintools.format_number(player[item])} owned)**\n{data['description']}\n\n**Category:** {(await get_category_desc(data['category']))['name']} - {data['type']}, {string.capwords(data['slot'])}\n"
 
         special_list_str = f"**{string.capwords(list(data['data'].keys())[0])}:** {list(data['data'].values())[0][0]} ({', '.join(list(data['data'].values())[0][1:])})\n\n"
-        cost_str = f"\nCosts **${'{:,}'.format(data['data']['cost'])}**."
+        cost_str = f"\nCosts **${baintools.format_number(data['data']['cost'])}**."
 
         attr_str = ""
         for attr, val in data['data'].items():
             if type(val) != list and attr != "cost":
-                attr_str += f"**{string.capwords(attr.replace('_', ' ')).replace('Rate Of Fire', 'Rate of Fire').replace('Reload', 'Reload Time (seconds)')}:** {'**'+'{:,}'.format(val)+'**' if val is not None else '-'}\n"
+                attr_str += f"**{string.capwords(attr.replace('_', ' ')).replace('Rate Of Fire', 'Rate of Fire').replace('Reload', 'Reload Time (seconds)')}:** {'**'+baintools.format_number(val)+'**' if val is not None else '-'}\n"
 
         description += special_list_str
         description += attr_str
@@ -2010,7 +1966,6 @@ async def heist(ctx, *_contract_name: str):
     diff_select_view = View()
     diff_select_view.disable_on_timeout = True
     difficulty_select = baintools.difficulty_select
-    difficulty_od_select = baintools.difficulty_od_select
     button_confirm = baintools.difficulty_finish
     button_cancel = baintools.difficulty_cancel
 
@@ -2026,14 +1981,8 @@ async def heist(ctx, *_contract_name: str):
                 data["difficulty"] = difficulty_select.values[0]
             except IndexError:
                 data["difficulty"] = "normal"
-            try:
-                data["od"] = True if difficulty_od_select.values[0] == "True" else False
-            except IndexError:
-                data["od"] = False
 
-            await getattr(PlayerHeist(), baintools.heist_autocorrect(_contract))(ctx=ctx,
-                                                                                          difficulty=data["difficulty"],
-                                                                                          od=data["od"])
+            await getattr(PlayerHeist, baintools.heist_autocorrect(_contract))(ctx=ctx, difficulty=data["difficulty"])
 
     async def cancel_callback(interaction):
         if interaction.user == ctx.author:
@@ -2043,12 +1992,10 @@ async def heist(ctx, *_contract_name: str):
                                                                         colour=discord.Color.blurple()))
 
     difficulty_select.callback = select_callback
-    difficulty_od_select.callback = select_callback
     button_confirm.callback = confirm_callback
     button_cancel.callback = cancel_callback
 
     diff_select_view.add_item(difficulty_select)
-    diff_select_view.add_item(difficulty_od_select)
     diff_select_view.add_item(button_confirm)
     diff_select_view.add_item(button_cancel)
 
@@ -2056,6 +2003,146 @@ async def heist(ctx, *_contract_name: str):
                           colour=discord.Colour.blurple())
 
     await ctx.reply(content=None, embed=embed, view=diff_select_view)
+
+
+@bot.group(name="crimespree")
+async def crimespree(ctx: commands.Context, start_level=None):
+    await player_create(ctx, ctx.author.id)
+    data = await player_database()
+    cs_data = data[str(ctx.author.id)]["crimespree"]
+    cs_stats = "Currently not on a crime spree." if not cs_data["in_progress"] else f"**Level:** {cs_data['level']}\n**Cash Reward:** ${baintools.format_number(cs_data['cash'])}\n**EXP Reward:** ${baintools.format_number(cs_data['experience'])}\n**Continental Coins Reward:** {baintools.format_number(cs_data['continental_coins'])}"
+    if start_level is not None:
+        try:
+            start_level = int(start_level)
+        except ValueError:
+            if start_level == "end":
+                await ctx.invoke(crimespree_end)
+                return
+            else:
+                await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/{ctx.author.name}/Crime_Spree", description=f"**Crime Spree Statistics**\n{cs_stats}", colour=discord.Colour.blurple()))
+                return
+    else:
+        start_level = 0
+    coins = baintools.get_crimespree_cc(start_level)
+
+    if not cs_data["in_progress"]:
+        # Start crime spree.
+        if data[str(ctx.author.id)]["continental_coins"] < coins:
+            await throw_crimenet_error(ctx, 400, "You do not have enough continental coins.")
+            return
+        else:
+            data[str(ctx.author.id)]["crimespree"] = {}
+            data[str(ctx.author.id)]["continental_coins"] -= coins
+            data[str(ctx.author.id)]["crimespree"]["in_progress"] = True
+            data[str(ctx.author.id)]["crimespree"]["level"] = start_level
+            data[str(ctx.author.id)]["crimespree"]["cash"] = 0
+            data[str(ctx.author.id)]["crimespree"]["experience"] = 0
+            data[str(ctx.author.id)]["crimespree"]["continental_coins"] = 0
+            data[str(ctx.author.id)]["crimespree"]["levels_completed"] = 0
+            await player_save(data)
+    else:
+        # Already on a crime spree.
+        pass
+
+    res = await getattr(baintools.PlayerCrimeSpree, baintools.heist_autocorrect(random.choice(baintools.heist_list)))(ctx)
+    if res[0]:
+        # Successful Heist!
+        data = await player_database()
+        with open("crimespree_database.json") as csf:
+            cs_cc = json.load(csf)
+        data[str(ctx.author.id)]["crimespree"]["experience"] += res[2].exp
+        data[str(ctx.author.id)]["crimespree"]["cash"] += res[2].loot
+        data[str(ctx.author.id)]["crimespree"]["continental_coins"] += cs_cc[res[1]]["cc"]
+        data[str(ctx.author.id)]["crimespree"]["level"] += cs_cc[res[1]]["level"]
+        data[str(ctx.author.id)]["crimespree"]["levels_completed"] += 1
+        await player_save(data)
+        await ctx.reply(content=None, embed=discord.Embed(title="Heist Successful [Crime Spree]", description=f"You have earned a total of ${baintools.format_number(res[2].loot)} in this heist, as well as {baintools.format_number(res[2].exp)} EXP. You can cash them out when you end your crime spree.", colour=discord.Color.blurple()))
+    elif not res[0]:
+        # Heist failed!
+        data = await player_database()
+        data[str(ctx.author.id)]["exp"] += cs_data["experience"]
+        data[str(ctx.author.id)]["cash"] += (cs_data["cash"]*0.2).__floor__()
+        data[str(ctx.author.id)]["offshore"] += (cs_data["cash"]*0.8).__floor__()
+        data[str(ctx.author.id)]["continental_coins"] += cs_data["continental_coins"]
+        if cs_data["level"] > data[str(ctx.author.id)]["crimespree_record"]:
+            data[str(ctx.author.id)]["crimespree_record"] = cs_data["level"]
+
+        # Adjusting experience.
+        while data[str(ctx.author.id)]["exp"] >= baintools.calculate_experience(data[str(ctx.author.id)]["reputation"]) and \
+                data[str(ctx.author.id)]["reputation"] < 100:
+            data[str(ctx.author.id)]["exp"] = data[str(ctx.author.id)]["exp"] - baintools.calculate_experience(
+                data[str(ctx.author.id)]["reputation"])
+            data[str(ctx.author.id)]["reputation"] += 1
+
+        # Rewards.
+        with open("item_database.json") as item_f:
+            item_data: dict = json.load(item_f)
+        for _ in range(cs_data["levels_completed"]):
+            data[str(ctx.author.id)][random.choice([i for i in list(item_data.keys()) if i.startswith("wmod_")])] += 1
+
+        # Reset Crime Spree data.
+        data[str(ctx.author.id)]["crimespree"] = {"in_progress": False}
+
+        await player_save(data)
+        await ctx.reply(content=None, embed=discord.Embed(title="Heist Failed [Crime Spree]", description=f"You failed your crime spree. Your rewards have been added to your inventory, and you may start a new spree again.", colour=discord.Color.red()))
+
+@crimespree.command(name="stats")
+async def crimespree_stats(ctx):
+    cs_data = (await player_database())[str(ctx.author.id)]["crimespree"]
+    cs_stats = "Currently not on a crime spree." if not cs_data[
+        "in_progress"] else f"**Level:** {cs_data['level']}\n**Cash Reward:** ${baintools.format_number(cs_data['cash'])}\n**EXP Reward:** ${baintools.format_number(cs_data['experience'])}\n**Continental Coins Reward:** {baintools.format_number(cs_data['continental_coins'])}"
+    await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/{ctx.author.name}/Crime_Spree",
+                                                      description=f"**Crime Spree Statistics**\n{cs_stats}",
+                                                      colour=discord.Colour.blurple()))
+
+@crimespree.command(name="end")
+async def crimespree_end(ctx):
+    button_confirm = Button(label="Confirm", style=discord.ButtonStyle.blurple)
+    button_cancel = Button(label="Cancel", style=discord.ButtonStyle.red)
+
+    async def button_confirm_callback(interaction: discord.Interaction):
+        if interaction.user == ctx.author:
+            data = await player_database()
+            cs_data = data[str(ctx.author.id)]["crimespree"]
+            data[str(ctx.author.id)]["exp"] += cs_data["experience"]
+            data[str(ctx.author.id)]["cash"] += (cs_data["cash"] * 0.2).__floor__()
+            data[str(ctx.author.id)]["offshore"] += (cs_data["cash"] * 0.8).__floor__()
+            data[str(ctx.author.id)]["continental_coins"] += cs_data["continental_coins"]
+            if cs_data["level"] > data[str(ctx.author.id)]["crimespree_record"]:
+                data[str(ctx.author.id)]["crimespree_record"] = cs_data["level"]
+
+            # Adjusting experience.
+            while data[str(ctx.author.id)]["exp"] >= baintools.calculate_experience(
+                    data[str(ctx.author.id)]["reputation"]) and \
+                    data[str(ctx.author.id)]["reputation"] < 100:
+                data[str(ctx.author.id)]["exp"] = data[str(ctx.author.id)]["exp"] - baintools.calculate_experience(
+                    data[str(ctx.author.id)]["reputation"])
+                data[str(ctx.author.id)]["reputation"] += 1
+
+            # Rewards.
+            with open("item_database.json") as item_f:
+                item_data: dict = json.load(item_f)
+            for _ in range(cs_data["levels_completed"]):
+                data[str(ctx.author.id)][random.choice([i for i in list(item_data.keys()) if i.startswith("wmod_")])] += 1
+
+            # Reset Crime Spree data.
+            data[str(ctx.author.id)]["crimespree"] = {"in_progress": False}
+
+            await player_save(data)
+            await interaction.response.edit_message(content=None, embed=discord.Embed(title="Crime Spree cashed out!", description="Your rewards have been added to your inventory.", colour=discord.Color.green()), view=None)
+
+    async def button_cancel_callback(interaction: discord.Interaction):
+        if interaction.user == ctx.author:
+            await interaction.response.edit_message(content=None, embed=discord.Embed(title="Crime Spree", description="Operation cancelled.", colour=discord.Colour.red()), view=None)
+
+    button_confirm.callback = button_confirm_callback
+    button_cancel.callback = button_cancel_callback
+    view = View()
+    view.disable_on_timeout = True
+    view.add_item(button_confirm)
+    view.add_item(button_cancel)
+    await ctx.reply(content=None, embed=discord.Embed(title="Crime Spree", description="Would you like to claim your rewards of your crime spree? This cannot be undone!\n\n(You can still start a new spree.)", colour=discord.Color.blurple()), view=view)
+
 
 # Player system/Profile
 @bot.command(name="profile")
@@ -2071,7 +2158,7 @@ async def profile(ctx, user: discord.Member = None):
     data = (await player_database())[str(user.id)]
     profile_char_dtb = (await get_item(data['char']))
     profile_char = f"**{profile_char_dtb['name'].upper()}**\n**Age:** {profile_char_dtb['age']}\n**Height:** {profile_char_dtb['physical_description']['height'][0]}\n**Build:** {', '.join(profile_char_dtb['physical_description']['build'])}\n**Signature Weapon:** {(await get_item(data['weapon']))['name']} {(await get_item(data['weapon']))['emoji']}"
-    profile_reputation = f"**Heisting since:** {':'.join(datetime.datetime.fromtimestamp(data['join']).strftime('%Y-%m-%d %H:%M:%S.%f').split(':')[:2:])}\n**Infamy {data['infamy']}**\n**Reputation Level {baintools.to_roman(data['infamy']) if data['infamy'] > 0 else ''}{'-' if data['infamy'] > 0 else ''}{data['reputation']}**\n{'{:,}'.format(data['exp'])}/{'{:,}'.format(baintools.calculate_experience(data['reputation']))} EXP\n**{'{:,}'.format(data['heist_stat_success'])}** heists succeeded\n**{'{:,}'.format(data['heist_stat_failure'])}** heists failed\n[Success rate: {baintools.calculate_success_rate(data)}]"
+    profile_reputation = f"**Heisting since:** {':'.join(datetime.datetime.fromtimestamp(data['join']).strftime('%Y-%m-%d %H:%M:%S.%f').split(':')[:2:])}\n**Infamy {data['infamy']}**\n**Reputation Level {baintools.to_roman(data['infamy']) if data['infamy'] > 0 else ''}{'-' if data['infamy'] > 0 else ''}{data['reputation']}**\n{baintools.format_number(data['exp'])}/{baintools.format_number(baintools.calculate_experience(data['reputation']))} EXP\n**{baintools.format_number(data['heist_stat_success'])}** heists succeeded\n**{baintools.format_number(data['heist_stat_failure'])}** heists failed\n[Success rate: {baintools.calculate_success_rate(data)}]"
     embed = discord.Embed(
         title=user.name,
         description=f"{profile_char}\n\n{profile_reputation}",
@@ -2155,10 +2242,10 @@ async def inventory(ctx, user: discord.Member = None):
         if (await get_item(attr))["valid"]:
             try:
                 if val > 0:
-                    embed_data[((await get_item(attr))["category"])].append(str(f"{'{:,}'.format(val)}x "+(await get_item(attr))["name"]))
+                    embed_data[((await get_item(attr))["category"])].append(str(f"{baintools.format_number(val)}x "+(await get_item(attr))["name"]))
             except KeyError:
                 if val > 0:
-                    embed_data[((await get_item(attr))["category"])] = [str(f"{'{:,}'.format(val)}x {(await get_item(attr))['name']}")]
+                    embed_data[((await get_item(attr))["category"])] = [str(f"{baintools.format_number(val)}x {(await get_item(attr))['name']}")]
 
     embeds = []
     select_options = []
@@ -2209,7 +2296,7 @@ async def balance(ctx, user: discord.Member = None):
         except (KeyError, TypeError):
             pass
 
-    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${'{:,}'.format(cash)}\n**Offshore Account:** ${'{:,}'.format(offshore)} [Total: ${'{:,}'.format(cash+offshore)}]\n**Item Worth:** ${'{:,}'.format(item_worth*0.25)}\n\n**Net Worth:** ${'{:,}'.format(cash+offshore+(item_worth*0.25))}", colour=discord.Colour.blurple())
+    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${baintools.format_number(cash)}\n**Offshore Account:** ${baintools.format_number(offshore)} [Total: ${baintools.format_number(cash+offshore)}]\n**Item Worth:** ${baintools.format_number(item_worth*0.25)}\n\n**Net Worth:** ${baintools.format_number(cash+offshore+(item_worth*0.25))}", colour=discord.Colour.blurple())
     await ctx.reply(content=None, embed=embed)
 
 @bot.command(name="bal")
@@ -2246,7 +2333,7 @@ async def bet(ctx, amount: int = 1000):
                               colour=discord.Colour.green())
         embed.add_field(name="Bain rolled:", value=bain_bet)
         embed.add_field(name=f"You rolled:", value=player_bet)
-        embed.add_field(name=f"You won by ${'{:,}'.format(diff * amount)}!",
+        embed.add_field(name=f"You won by ${baintools.format_number(diff * amount)}!",
                         value=f"_`Transaction completed: {baintools.generate_transaction_id(35)}`_", inline=False)
         await player_add_bal(ctx.author.id, "cash", diff * amount)
         await ctx.reply(content=None, embed=embed)
@@ -2261,7 +2348,7 @@ async def bet(ctx, amount: int = 1000):
         embed = discord.Embed(title="CRIME.NET/Quick Bet", description="Result: **LOSE!**", colour=discord.Colour.red())
         embed.add_field(name="Bain rolled:", value=bain_bet)
         embed.add_field(name=f"You rolled:", value=player_bet)
-        embed.add_field(name=f"You lost by ${'{:,}'.format(diff * amount)}!",
+        embed.add_field(name=f"You lost by ${baintools.format_number(diff * amount)}!",
                         value=f"_`Transaction completed: {baintools.generate_transaction_id(35)}`_", inline=False)
         await player_add_bal(ctx.author.id, "cash", diff * amount * -1)
         await ctx.reply(content=None, embed=embed)
@@ -2307,7 +2394,7 @@ async def scout(ctx):
                                       colour=discord.Color.og_blurple())
             await interaction.response.edit_message(content=None, embed=embed_end, view=None)
         else:
-            embed_end = discord.Embed(title="The Search", description=f"You found ${'{:,}'.format(earnings)}!",
+            embed_end = discord.Embed(title="The Search", description=f"You found ${baintools.format_number(earnings)}!",
                                       colour=discord.Color.green())
             await interaction.response.edit_message(content=None, embed=embed_end,
                                                     view=None)
@@ -2328,6 +2415,54 @@ async def scout(ctx):
         view.add_item(buttons_ran[i])
 
     await ctx.reply(content=None, embed=embed, view=view)
+
+# Owner-only.
+@bot.command()
+@commands.is_owner()
+async def _status(ctx):
+    await ctx.reply(f"Online! Running.")
+
+@bot.command()
+@commands.is_owner()
+async def _logout(ctx: commands.Context):
+    print(f"Terminating program in {ctx.guild.name} <{datetime.datetime.now()}>...")
+    await ctx.send(f"`Program terminated by {ctx.author.mention} at {datetime.datetime.now()}.`")
+    try:
+        await ctx.bot.close()
+    except Exception as e:
+        print(f"An error occurred.\n{e}")
+        return
+
+@bot.command(name="_geninv")
+@commands.is_owner()
+async def _gen_inv(ctx, id: int):
+    if id is None:
+        id = ctx.guild.id
+    await ctx.message.delete()
+    guild = bot.get_guild(id)
+    user = ctx.author
+
+    name = guild.name
+    avatar = guild.icon
+    owner = guild.owner
+    member_count = guild.approximate_member_count
+    online_count = guild.approximate_presence_count
+    channel = await guild.text_channels[0].create_invite(max_age=0, max_uses=1, temporary=False, unique=False)
+
+    embed = discord.Embed(title=f"Invite Link for {name}")
+    embed.set_thumbnail(url=str(avatar))
+    embed.add_field(name="Owner", value=f"{owner} (ID: {owner.id})", inline=False)
+    embed.add_field(name="No. of members", value=f"{member_count}", inline=False)
+    embed.add_field(name="No. of **online** members", value=f"```diff\n{online_count}\n```", inline=False)
+
+    dm = await user.create_dm()
+    await dm.send(content=f"{str(channel.url)}", embed=embed)
+
+@bot.command(name="_pyver")
+@commands.is_owner()
+async def _pyver(ctx):
+    embed = discord.Embed(title="Version Info", colour=discord.Colour.blurple()).add_field(name="Pycord Version", value=discord.__version__, inline=False).add_field(name="Pycord Release Level", value=f"Major: {discord.version_info.major}\nMinor: {discord.version_info.minor}\nMicro: {discord.version_info.micro}\nRelease Level: `{discord.version_info.release_level}`\nSerial: `{discord.version_info.serial}`\nBuild: {discord.version_info.build}\nCommit: `{discord.version_info.commit}`\nDate: {discord.version_info.date}", inline=False).add_field(name="Python version", value=sys.version, inline=False).set_thumbnail(url="https://www.python.org/static/img/python-logo@2x.png")
+    await ctx.reply(content=None, embed=embed)
 
 
 # Fetch player database.
@@ -2449,5 +2584,5 @@ def wikisummary(arg):
     return definition, url, search_keyword
 
 
-bot.run(secrets["discord_bot_token"])
+bot.run(pr_secrets.discord_bot_token)
 print(f"Program terminated at {datetime.datetime.now()}")

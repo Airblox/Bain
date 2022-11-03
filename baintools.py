@@ -1,3 +1,4 @@
+import asyncio
 import time
 import random
 import string
@@ -6,7 +7,6 @@ import json
 from discord.ui import View, Button, Select
 from discord import SelectOption
 from re import sub
-
 
 item_prefixes = ["w", "wmod"]
 
@@ -48,9 +48,13 @@ def to_roman(number: int):
     for index, (i, v) in enumerate(guide.items()):
         q, r = divmod(remainder, i)
         remainder = r
-        result += "".join([v for i in range(q)])
+        result += "".join([v for _ in range(q)])
 
     return result
+
+
+def format_number(number: int):
+    return "{:,}".format(number)
 
 
 def calculate_experience(level: int):
@@ -91,6 +95,10 @@ def heist_autocorrect(_contract: str):
     return snake_case(_contract).replace("'", "").replace("í", "i")
 
 
+def get_crimespree_cc(amount: int):
+    return amount*0.5
+
+
 def item_autocorrect(_item: str, prefix: bool = True):
     global item_prefixes
     item = _item.replace(".", "").replace(" ", "").replace("_", "").replace("'", "").lower()
@@ -108,7 +116,7 @@ def item_autocorrect(_item: str, prefix: bool = True):
                 _prefix = i
                 break
 
-        return str(_prefix+"_"+item)
+        return str(_prefix + "_" + item)
     else:
         return item
 
@@ -129,13 +137,6 @@ async def player_heist_end(*, user_id: str, heist: str, loot: int, success: bool
     async def player_save(_data):
         with open("mainbank.json", "w") as file:
             json.dump(_data, file)
-
-    async def player_exp_adjust(_user_id: int):
-        _data = await player_database()
-        while _data[str(_user_id)]["exp"] >= calculate_experience(_data[str(_user_id)]["reputation"]) and _data[str(_user_id)]["reputation"] < 100:
-            _data[str(_user_id)]["exp"] = _data[str(_user_id)]["exp"] - calculate_experience(_data[str(_user_id)]["reputation"])
-            _data[str(_user_id)]["reputation"] += 1
-        await player_save(_data)
 
     data = await player_database()
     if success:
@@ -161,6 +162,8 @@ async def player_heist_end(*, user_id: str, heist: str, loot: int, success: bool
                 data[str(user_id)]["reputation"])
             data[str(user_id)]["reputation"] += 1
         await player_save(data)
+
+
 emojis = {
     "diff_skull": "<:diff_skull:1029041261107236904>",
     "diff_mayhem": "<:mayhem_skull:1029041319638732813>",
@@ -215,6 +218,7 @@ class PlayerInfo:
         # Profile
         "cash": 0,
         "offshore": 0,
+        "continental_coins": 11,
         "join": time.time().__floor__(),
         "char": "dallas",
         "weapon": "w_amcar",
@@ -239,11 +243,22 @@ class PlayerInfo:
         "w_crosskill": 0,
 
         # Weapon Mods
-        "wmod_lowprofilesuppressor":0,
+        "wmod_lowprofilesuppressor": 0,
 
         # Heists
         "heist_stat_success": 0,
-        "heist_stat_failure": 0
+        "heist_stat_failure": 0,
+
+        # Crime Spree
+        "crimespree": {
+            "in_progress": False,
+            "level": 0,
+            "cash": 0,
+            "experience": 0,
+            "continental_coins": 0,
+            "levels_completed": 0
+        },
+        "crimespree_record": 0
     }
     player_heist_multiplier = {
         "normal": float(1),
@@ -284,7 +299,8 @@ class PlayerInfo:
 
 class PlayerHeist:
     # return [heist success?], [heist name], [rewards.loot], [difficulty]
-    async def jewelry_store(self, ctx, difficulty, od):
+    @staticmethod
+    async def jewelry_store(ctx, difficulty):
         class Info:
             def __init__(self):
                 self.bags = 0
@@ -347,3 +363,63 @@ class PlayerHeist:
 
 
 heist_list = [i.replace("_", " ").lower() for i in dir(PlayerHeist()) if not i.startswith("__")]
+
+class PlayerCrimeSpree:
+    @staticmethod
+    async def jewelry_store(ctx):
+        class Info:
+            def __init__(self):
+                self.bags = 0
+                self.loot = 0
+                self.exp = 0
+                self.heist_not_end = True
+                self.result: tuple = ()
+
+        rewards = Info()
+        embed = discord.Embed(title="Precious Things (Jewelry Store)",
+                              description=f"Bain: We'll need {difficulty_scaling['overkill'].__ceil__() + 2} bags. Go get it!",
+                              colour=discord.Colour.blurple())
+        view = View()
+        for i in range(difficulty_scaling["overkill"].__ceil__() + 2):
+            bag = Button(label="Jewelry", style=discord.ButtonStyle.blurple, custom_id=f"jewelry_{i}")
+
+            async def bag_callback(interaction):
+                if interaction.user == ctx.author:
+                    await interaction.response.defer()
+                    rewards.bags += 1
+                    rewards.loot += 5000 * difficulty_scaling["overkill"] / 2
+                    rewards.exp += 500 * difficulty_scaling["overkill"] / 2
+                    view.children = view.children[1:]
+
+                    await interaction.followup.edit_message(message_id=interaction.message.id, view=view)
+
+            bag.callback = bag_callback
+            view.add_item(bag)
+
+        escape = Button(label="ESCAPE!", style=discord.ButtonStyle.green)
+
+        async def escape_callback(interaction: discord.Interaction):
+            if interaction.user == ctx.author:
+                if rewards.bags >= difficulty_scaling["overkill"].__ceil__() + 2:
+                    await interaction.response.defer()
+                    await interaction.message.delete()
+                    rewards.heist_not_end = False
+                    rewards.result = True, "jewelry store", rewards
+                else:
+                    await interaction.response.defer()
+                    await interaction.message.delete()
+                    rewards.heist_not_end = False
+                    rewards.result = tuple([False])
+
+        escape.callback = escape_callback
+        view.add_item(escape)
+
+        await ctx.reply(embed=embed, view=view)
+
+        while True:
+            if len(rewards.result) == 0:
+                await asyncio.sleep(0.00001)
+            else:
+                break
+
+        return rewards.result
