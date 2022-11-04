@@ -391,14 +391,42 @@ class PlayerHeist:
                     button_deposit = Button(label="Deposit Box", style=discord.ButtonStyle.green)
 
                     async def deposit_call(interaction2):
-                        new_view.children = new_view.children[:len(new_view.children)-2].append(new_view.children[-1])
-                        storage.looted = True
-                        storage.money += 300*PlayerInfo.player_heist_multiplier[difficulty]
-                        await interaction2.response.edit_message(view=new_view)
+                        if interaction2.user == ctx.author:
+                            new_view.children = new_view.children[:len(new_view.children)-2].append(new_view.children[-1])
+                            storage.looted = True
+                            storage.money += 300*PlayerInfo.player_heist_multiplier[difficulty]
+                            await interaction2.response.edit_message(view=new_view)
                     
                     button_deposit.callback = deposit_call
                     storage.buttons.append(button_deposit)
-                    button_escape = Button()
+                    button_escape = Button(label="Escape!", style=discord.ButtonStyle.red)
+                    
+                    async def button_escape_callback(interaction):
+                        if interaction2.user == ctx.author:
+                            if rewards.bags >= difficulty_scaling[difficulty].__ceil__()+2:
+                    new_embed = discord.Embed(title="Jewelry Store: Success", description=f"**Heist successful!**\n**Your rewards:**\n${'{:,}'.format(rewards.loot)}\n{'{:,}'.format(rewards.exp)} EXP\n\n**Sent to offshore:** ${'{:,}'.format(rewards.loot*0.8.__floor__())}", colour=discord.Colour.green())
+                    await interaction.response.edit_message(embed=new_embed, view=None)
+                    rewards.heist_not_end = False
+                    result = True, "jewelry store", rewards.loot, difficulty
+
+                    if result[0]:  # Fail!
+                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2],
+                                               difficulty=result[3], success=True)
+                    elif not result[0]:
+                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2], success=False,
+                                               difficulty=result[3])
+                else:
+                    new_embed = discord.Embed(title="Jewelry Store: Failed", description="You failed. No money will be paid out, all assets will be locked, and any valuables you held have been confiscated.", colour=discord.Colour.red())
+                    await interaction.response.edit_message(content=None, embed=new_embed, view=None)
+                    rewards.heist_not_end = False
+                    result = False, "jewelry store", rewards.loot, difficulty
+
+                    if result[0]:  # Fail!
+                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2],
+                                               difficulty=result[3], success=True)
+                    elif not result[0]:
+                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2], success=False,
+                                               difficulty=result[3])
                     
                     new_view = View()
                     new_view.disable_on_timeout = True
@@ -407,7 +435,7 @@ class PlayerHeist:
                         new_view.add_item(i)
                     
                     await interaction.response.edit_message(view=new_view)
-            
+                    
         
         button.callback = button_callback
         view = View()
