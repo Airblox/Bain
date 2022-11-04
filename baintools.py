@@ -360,7 +360,60 @@ class PlayerHeist:
         view.add_item(escape)
 
         await ctx.reply(embed=embed, view=view)
+    
+    async def bank_heist_cash(ctx, difficulty):
+        class Info:
+            def __init__(self):
+                self.money = 0
+                self.experience = 0
+                self.vault_health = 5000
+                self.looted = True
+                self.buttons = []
 
+        storage = Info()
+        button = Button(label="Use Thermal Drill", style=discord.ButtonStyle.blurple)
+        
+        async def button_callback(interaction):
+            if interaction.user == ctx.author:
+                storage.vault_health -= 1000
+                if storage.vault_health == 0:
+                    async def money_call(interaction2):
+                        new_view.children = new_view.children[1:]
+                        storage.money += 5000*PlayerInfo.player_heist_multiplier[difficulty]
+                        storage.looted = True
+                        await interaction2.response.edit_message(view=new_view)
+
+                    for i in range(4):
+                        button = Button(label="Money", style=discord.ButtonStyle.blurple)
+                        button.callback = money_call
+                        storage.buttons.append(button)
+                    
+                    button_deposit = Button(label="Deposit Box", style=discord.ButtonStyle.green)
+
+                    async def deposit_call(interaction2):
+                        new_view.children = new_view.children[:len(new_view.children)-2].append(new_view.children[-1])
+                        storage.looted = True
+                        storage.money += 300*PlayerInfo.player_heist_multiplier[difficulty]
+                        await interaction2.response.edit_message(view=new_view)
+                    
+                    button_deposit.callback = deposit_call
+                    storage.buttons.append(button_deposit)
+                    button_escape = Button()
+                    
+                    new_view = View()
+                    new_view.disable_on_timeout = True
+                    
+                    for i in storage.buttons:
+                        new_view.add_item(i)
+                    
+                    await interaction.response.edit_message(view=new_view)
+            
+        
+        button.callback = button_callback
+        view = View()
+        view.disable_on_timeout = True
+        view.add_item(button)
+        await ctx.reply(content=None, embed=discord.Embed(title="Harvest & Trustee Bank", description="Bain: Guys, the thermal drill. Go get it.\nDrill open the vault!"))
 
 heist_list = [i.replace("_", " ").lower() for i in dir(PlayerHeist()) if not i.startswith("__")]
 
