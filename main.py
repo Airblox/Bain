@@ -2674,9 +2674,33 @@ async def fight(ctx, user: discord.Member):
             new_main_embed.add_field(name=f"Player 2 [{user.name}]",
                                      value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
             await interaction.response.edit_message(embed=new_main_embed)
-        else:
+         else:
             interaction.response.defer()
 
+    async def button_heal_c(interaction: discord.Interaction):
+        if interaction.user == ctx.author:
+            p1.use_fak()
+            new_main_embed = discord.Embed(title="Shootout",
+                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           colour=discord.Color.blurple())
+            new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
+                                     value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+            new_main_embed.add_field(name=f"Player 2 [{user.name}]",
+                                     value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+            await interaction.response.edit_message(embed=new_main_embed)
+        elif interaction.user == user:
+            p2.use_fak()
+            new_main_embed = discord.Embed(title="Shootout",
+                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           colour=discord.Color.blurple())
+            new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
+                                     value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+            new_main_embed.add_field(name=f"Player 2 [{user.name}]",
+                                     value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+            await interaction.response.edit_message(embed=new_main_embed)
+        else:
+            await interaction.response.defer()
+    
     button_attack.callback = button_attack_c
     button_swap.callback = button_swap_c
 
