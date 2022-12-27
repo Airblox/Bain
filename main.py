@@ -2540,6 +2540,7 @@ async def fight(ctx, user: discord.Member):
             self.p1_ready = False
             self.p2_ready = False
             self.fight_ended = False
+            self.winner = 0
 
     tempdata = TempData()
     original_embed = discord.Embed(title="Fight!",
@@ -2628,6 +2629,10 @@ async def fight(ctx, user: discord.Member):
         if interaction.user == ctx.author:
             # Player 1 attacked, player 2 takes damage.
             await p2.take_damage(p1.primary)
+            if p2.status["is_dead"]:
+                tempdata.winner = 1
+                tempdata.fight_ended = True
+                return
             # Update embeds.
             new_main_embed = discord.Embed(title="Shootout",
                                            description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
@@ -2640,6 +2645,10 @@ async def fight(ctx, user: discord.Member):
         elif interaction.user == user:
             # Player 2 attacked, player 1 takes damage.
             await p1.take_damage(p2.primary)
+            if p1.status["is_dead"]:
+                tempdata.winner = 2
+                tempdata.fight_ended = True
+                return
             # Update embeds.
             new_main_embed = discord.Embed(title="Shootout",
                                            description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
@@ -2703,6 +2712,7 @@ async def fight(ctx, user: discord.Member):
     
     button_attack.callback = button_attack_c
     button_swap.callback = button_swap_c
+    button_heal.callback = button_heal_c
 
     async def view_timeout():
         tempdata.fight_ended = True
@@ -2718,6 +2728,15 @@ async def fight(ctx, user: discord.Member):
 
     while not tempdata.fight_ended:
         await asyncio.sleep(0.01)
+    
+    if tempdata.winner = 0:
+        # Match abandoned.
+        await inter_message.edit(content=None, embed=discord.Embed(title="Shootout forfeited", description="This match was forfeited due to inactivity.", colour=discord.Colour.blurple()))
+        return
+    else:
+        winner = ctx.author if tempdata.winner == 1 else user
+        # Give winner 100k cash to spending.
+        
 
 
 # Player system/Casual
