@@ -2736,8 +2736,12 @@ async def fight(ctx, user: discord.Member):
     else:
         winner = ctx.author if tempdata.winner == 1 else user
         # Give winner 100k cash to spending.
-        
-
+        await player_add_bal(str(winner.id), "cash", 100000)
+        # Update embeds
+        final_embed = discord.Embed(title="Shootout - Results", description=f"Fight had ended - **{winner.name}** (Player {tempdata.winner}) has won!", colour=discord.Colour.green())
+        final_embed.add_field(name="Player 1 [{ctx.author.name}]", value=("**🏆 Winner!**" if tempdata.winner == 1 else "**💀 In custody!**"))
+        final_embed.add_field(name="Player 2 [{user.name}]", value=("**🏆 Winner!**" if tempdata.winner == 2 else "**💀 In custody!**"))
+        await inter_message.edit(embed=final_embed, view=None)
 
 # Player system/Casual
 @bot.command()
