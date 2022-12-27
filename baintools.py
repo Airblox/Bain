@@ -181,6 +181,13 @@ emojis = {
     "car4": "<:car4:1032610042865778728>",
     "uar": "<:uar:1032610044648357918>",
     "ak762": "<:ak762:1032610046636470302>",
+    "jp36": "<:jp36:1048236130904064061>",
+    "galant": "<:galant:1048632788691210351>",
+    "m308": "<:m308:1048635597905997844>",
+    "ak5": "<:ak5:1048636791688806421>",
+    "amr16": "<:amr16:1048795631499612271>",
+    "tempest21": "<:tempest21:1048796552023527574>",
+    "union556": "<:union556:1048837519883649054>",
 
     "chimano88": "<:chimano_88:1032610049006239744>",
     "crosskill": "<:crosskill:1032610050717519892>"
@@ -237,6 +244,13 @@ class PlayerInfo:
         "w_car4": 0,
         "w_uar": 0,
         "w_ak762": 0,
+        "w_jp36": 0,
+        "w_galant": 0,
+        "w_m308": 0,
+        "w_ak5": 0,
+        "w_amr16": 0,
+        "w_tempest21": 0,
+        "w_union556": 0,
 
         # Secondary Weapons
         "w_chimano88": 1,
@@ -311,6 +325,7 @@ class PlayerHeist:
         rewards = Info()
         embed = discord.Embed(title="Precious Things (Jewelry Store)", description=f"Bain: We'll need {difficulty_scaling[difficulty].__ceil__()+2} bags. Go get it!", colour=discord.Colour.blurple())
         view = View()
+        view.disable_on_timeout = True
         for i in range(difficulty_scaling[difficulty].__ceil__()+2):
             bag = Button(label="Jewelry", style=discord.ButtonStyle.blurple, custom_id=f"jewelry_{i}")
 
@@ -331,8 +346,9 @@ class PlayerHeist:
 
         async def escape_callback(interaction):
             if interaction.user == ctx.author:
+                view.disable_on_timeout = False
                 if rewards.bags >= difficulty_scaling[difficulty].__ceil__()+2:
-                    new_embed = discord.Embed(title="Jewelry Store: Success", description=f"**Heist successful!**\n**Your rewards:**\n${'{:,}'.format(rewards.loot)}\n{'{:,}'.format(rewards.exp)} EXP\n\n**Sent to offshore:** ${'{:,}'.format(rewards.loot*0.8.__floor__())}", colour=discord.Colour.green())
+                    new_embed = discord.Embed(title="Jewelry Store: Success", description=f"**Heist successful!**\n**Your rewards:**\n${'{:,}'.format(rewards.loot)}\n{'{:,}'.format(rewards.exp)} EXP\n\n**Sent to offshore:** ${'{:,}'.format((rewards.loot*0.8).__floor__())}", colour=discord.Colour.green())
                     await interaction.response.edit_message(embed=new_embed, view=None)
                     rewards.heist_not_end = False
                     result = True, "jewelry store", rewards.loot, difficulty
@@ -360,7 +376,8 @@ class PlayerHeist:
         view.add_item(escape)
 
         await ctx.reply(embed=embed, view=view)
-    
+
+    @staticmethod
     async def bank_heist_cash(ctx, difficulty):
         class Info:
             def __init__(self):
@@ -380,68 +397,76 @@ class PlayerHeist:
                     async def money_call(interaction2):
                         new_view.children = new_view.children[1:]
                         storage.money += 5000*PlayerInfo.player_heist_multiplier[difficulty]
+                        storage.experience += 1000*PlayerInfo.player_heist_multiplier[difficulty]
                         storage.looted = True
                         await interaction2.response.edit_message(view=new_view)
 
                     for i in range(4):
-                        button = Button(label="Money", style=discord.ButtonStyle.blurple)
-                        button.callback = money_call
-                        storage.buttons.append(button)
+                        _button = Button(label="Money", style=discord.ButtonStyle.blurple)
+                        _button.callback = money_call
+                        storage.buttons.append(_button)
                     
                     button_deposit = Button(label="Deposit Box", style=discord.ButtonStyle.green)
 
                     async def deposit_call(interaction2):
                         if interaction2.user == ctx.author:
-                            new_view.children = new_view.children[:len(new_view.children)-2].append(new_view.children[-1])
-                            storage.looted = True
+                            for _i in new_view.children:
+                                if _i.type == discord.ComponentType.button:
+                                    if _i.style == discord.ButtonStyle.green:
+                                        new_view.children.remove(_i)
                             storage.money += 300*PlayerInfo.player_heist_multiplier[difficulty]
+                            storage.experience += 500 * PlayerInfo.player_heist_multiplier[difficulty]
                             await interaction2.response.edit_message(view=new_view)
                     
                     button_deposit.callback = deposit_call
                     storage.buttons.append(button_deposit)
                     button_escape = Button(label="Escape!", style=discord.ButtonStyle.red)
                     
-                    async def button_escape_callback(interaction):
+                    async def button_escape_callback(interaction2):
                         if interaction2.user == ctx.author:
-                            if rewards.bags >= difficulty_scaling[difficulty].__ceil__()+2:
-                    new_embed = discord.Embed(title="Jewelry Store: Success", description=f"**Heist successful!**\n**Your rewards:**\n${'{:,}'.format(rewards.loot)}\n{'{:,}'.format(rewards.exp)} EXP\n\n**Sent to offshore:** ${'{:,}'.format(rewards.loot*0.8.__floor__())}", colour=discord.Colour.green())
-                    await interaction.response.edit_message(embed=new_embed, view=None)
-                    rewards.heist_not_end = False
-                    result = True, "jewelry store", rewards.loot, difficulty
+                            new_view.disable_on_timeout = False
+                            if bool(storage.money):
+                                new_embed = discord.Embed(title="Bank Heist: Cash: Success", description=f"**Heist successful!**\n**Your rewards:**\n${'{:,}'.format(storage.money)}\n{'{:,}'.format(storage.experience)} EXP\n\n**Sent to offshore:** ${'{:,}'.format((storage.money*0.8).__floor__())}", colour=discord.Colour.green())
+                                await interaction2.response.edit_message(embed=new_embed, view=None)
+                                result = True, "bank heist cash", storage.money, difficulty
 
-                    if result[0]:  # Fail!
-                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2],
-                                               difficulty=result[3], success=True)
-                    elif not result[0]:
-                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2], success=False,
-                                               difficulty=result[3])
-                else:
-                    new_embed = discord.Embed(title="Jewelry Store: Failed", description="You failed. No money will be paid out, all assets will be locked, and any valuables you held have been confiscated.", colour=discord.Colour.red())
-                    await interaction.response.edit_message(content=None, embed=new_embed, view=None)
-                    rewards.heist_not_end = False
-                    result = False, "jewelry store", rewards.loot, difficulty
+                                if result[0]:  # Fail!
+                                    await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2],
+                                                           difficulty=result[3], success=True)
+                                elif not result[0]:
+                                    await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2], success=False,
+                                                           difficulty=result[3])
 
-                    if result[0]:  # Fail!
-                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2],
-                                               difficulty=result[3], success=True)
-                    elif not result[0]:
-                        await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2], success=False,
-                                               difficulty=result[3])
-                    
+                            else:
+                                new_embed = discord.Embed(title="Bank Heist: Cash: Failed", description="You failed. No money will be paid out, all assets will be locked, and any valuables you held have been confiscated.", colour=discord.Colour.red())
+                                await interaction2.response.edit_message(content=None, embed=new_embed, view=None)
+                                result = False, "bank heist cash", storage.money, difficulty
+
+                                if result[0]:  # Fail!
+                                    await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2],
+                                                           difficulty=result[3], success=True)
+                                elif not result[0]:
+                                    await player_heist_end(user_id=ctx.author.id, heist=result[1], loot=result[2], success=False,
+                                                           difficulty=result[3])
+
+                    button_escape.callback = button_escape_callback
+                    storage.buttons.append(button_escape)
                     new_view = View()
                     new_view.disable_on_timeout = True
                     
                     for i in storage.buttons:
                         new_view.add_item(i)
-                    
-                    await interaction.response.edit_message(view=new_view)
-                    
-        
+
+                    await interaction.response.edit_message(embed=discord.Embed(title="Harvest & Trustee Bank", description=f"Bag the loot! We need at least 1 bag.", colour=discord.Colour.blurple()), view=new_view)
+                else:
+                    await interaction.response.edit_message(embed=discord.Embed(title="Harvest & Trustee Bank", description=f"Bain: Guys, the thermal drill. Go get it.\nDrill open the vault!\nVault Health: {format_number(storage.vault_health)}/5,000", colour=discord.Colour.blurple()))
+
         button.callback = button_callback
         view = View()
         view.disable_on_timeout = True
         view.add_item(button)
-        await ctx.reply(content=None, embed=discord.Embed(title="Harvest & Trustee Bank", description="Bain: Guys, the thermal drill. Go get it.\nDrill open the vault!"))
+        await ctx.reply(content=None, embed=discord.Embed(title="Harvest & Trustee Bank", description="Bain: Guys, the thermal drill. Go get it.\nDrill open the vault!", colour=discord.Color.blurple()), view=view)
+
 
 heist_list = [i.replace("_", " ").lower() for i in dir(PlayerHeist()) if not i.startswith("__")]
 
@@ -455,12 +480,14 @@ class PlayerCrimeSpree:
                 self.exp = 0
                 self.heist_not_end = True
                 self.result: tuple = ()
+                self._timeout = True
 
         rewards = Info()
         embed = discord.Embed(title="Precious Things (Jewelry Store)",
                               description=f"Bain: We'll need {difficulty_scaling['overkill'].__ceil__() + 2} bags. Go get it!",
                               colour=discord.Colour.blurple())
         view = View()
+        view.disable_on_timeout = True
         for i in range(difficulty_scaling["overkill"].__ceil__() + 2):
             bag = Button(label="Jewelry", style=discord.ButtonStyle.blurple, custom_id=f"jewelry_{i}")
 
@@ -481,6 +508,7 @@ class PlayerCrimeSpree:
 
         async def escape_callback(interaction: discord.Interaction):
             if interaction.user == ctx.author:
+                view.disable_on_timeout = False
                 if rewards.bags >= difficulty_scaling["overkill"].__ceil__() + 2:
                     await interaction.response.defer()
                     await interaction.message.delete()
@@ -495,12 +523,126 @@ class PlayerCrimeSpree:
         escape.callback = escape_callback
         view.add_item(escape)
 
+        async def view_timeout():
+            rewards._timeout = False
+
+        view.on_timeout = view_timeout
+
         await ctx.reply(embed=embed, view=view)
 
         while True:
-            if len(rewards.result) == 0:
+            if len(rewards.result) == 0 and rewards._timeout:
                 await asyncio.sleep(0.00001)
             else:
                 break
 
-        return rewards.result
+        return rewards.result if rewards._timeout else Info()
+
+    @staticmethod
+    async def bank_heist_cash(ctx, difficulty):
+        class Info:
+            def __init__(self):
+                self.money = 0
+                self.experience = 0
+                self.vault_health = 5000
+                self.looted = True
+                self.buttons = []
+                self.result = ()
+                self._timeout = True
+
+        storage = Info()
+        button = Button(label="Use Thermal Drill", style=discord.ButtonStyle.blurple)
+
+        async def button_callback(interaction):
+            if interaction.user == ctx.author:
+                storage.vault_health -= 1000
+                if storage.vault_health == 0:
+                    async def money_call(interaction2):
+                        new_view.children = new_view.children[1:]
+                        storage.money += 5000 * PlayerInfo.player_heist_multiplier[difficulty]
+                        storage.experience += 1000 * PlayerInfo.player_heist_multiplier[difficulty]
+                        storage.looted = True
+                        await interaction2.response.edit_message(view=new_view)
+
+                    for i in range(4):
+                        _button = Button(label="Money", style=discord.ButtonStyle.blurple)
+                        _button.callback = money_call
+                        storage.buttons.append(_button)
+
+                    button_deposit = Button(label="Deposit Box", style=discord.ButtonStyle.green)
+
+                    async def deposit_call(interaction2):
+                        if interaction2.user == ctx.author:
+                            for _i in new_view.children:
+                                if _i.type == discord.ComponentType.button:
+                                    if _i.style == discord.ButtonStyle.green:
+                                        new_view.children.remove(_i)
+                            storage.money += 300 * PlayerInfo.player_heist_multiplier[difficulty]
+                            storage.experience += 500 * PlayerInfo.player_heist_multiplier[difficulty]
+                            await interaction2.response.edit_message(view=new_view)
+
+                    button_deposit.callback = deposit_call
+                    storage.buttons.append(button_deposit)
+                    button_escape = Button(label="Escape!", style=discord.ButtonStyle.red)
+
+                    async def button_escape_callback(interaction2):
+                        if interaction2.user == ctx.author:
+                            new_view.disable_on_timeout = False
+                            new_view.clear_items()
+                            if bool(storage.money):
+                                new_embed = discord.Embed(title="Bank Heist: Cash: Success",
+                                                          description=f"**Heist successful!**\n**Your rewards:**\n${'{:,}'.format(storage.money)}\n{'{:,}'.format(storage.experience)} EXP\n\n**Sent to offshore:** ${'{:,}'.format((storage.money * 0.8).__floor__())}",
+                                                          colour=discord.Colour.green())
+                                await interaction2.response.edit_message(embed=new_embed, view=new_view)
+                                storage.result = True, "bank heist cash", storage
+
+                            else:
+                                new_embed = discord.Embed(title="Bank Heist: Cash: Failed",
+                                                          description="You failed. No money will be paid out, all assets will be locked, and any valuables you held have been confiscated.",
+                                                          colour=discord.Colour.red())
+                                await interaction2.response.edit_message(content=None, embed=new_embed, view=None)
+                                storage.result = False, "bank heist cash", storage
+
+                    button_escape.callback = button_escape_callback
+                    storage.buttons.append(button_escape)
+                    new_view = View()
+                    new_view.disable_on_timeout = True
+
+                    for i in storage.buttons:
+                        new_view.add_item(i)
+
+                    await interaction.response.edit_message(embed=discord.Embed(title="Harvest & Trustee Bank",
+                                                                                description=f"Bag the loot! We need at least 1 bag.",
+                                                                                colour=discord.Colour.blurple()),
+                                                            view=new_view)
+                else:
+                    await interaction.response.edit_message(embed=discord.Embed(title="Harvest & Trustee Bank",
+                                                                                description=f"Bain: Guys, the thermal drill. Go get it.\nDrill open the vault!\nVault Health: {format_number(storage.vault_health)}/5,000",
+                                                                                colour=discord.Colour.blurple()))
+
+        button.callback = button_callback
+        view = View()
+        view.disable_on_timeout = True
+
+        async def view_timeout():
+            storage._timeout = False
+
+        view.on_timeout = view_timeout
+
+        view.add_item(button)
+        await ctx.reply(content=None, embed=discord.Embed(title="Harvest & Trustee Bank",
+                                                          description="Bain: Guys, the thermal drill. Go get it.\nDrill open the vault!",
+                                                          colour=discord.Color.blurple()), view=view)
+
+        while True:
+            if len(storage.result) == 0 and storage._timeout:
+                await asyncio.sleep(0.00001)
+            else:
+                break
+
+        if storage._timeout:
+            return storage.result
+        else:
+            thing = Info()
+            thing.vault_health = 0
+            return thing

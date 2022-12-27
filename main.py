@@ -27,16 +27,17 @@ from discord.ui import Button, Select, View, Modal, InputText
 from wikipedia import PageError, DisambiguationError
 from baintools import PlayerInfo, PlayerHeist
 
-
 print(f"INITIALIZE AT {datetime.datetime.now()}\n")
 print("CRIME.NET CONNECTION\nSTATUS CODE: 200\n>>> Fetching server information...")
 
 os.chdir(pr_secrets.os_dir)
 
-bot = commands.Bot(command_prefix=".", intents=discord.Intents.all(), owner_id=pr_secrets.owner_id, auto_sync_commands=True)
+bot = commands.Bot(command_prefix=".", intents=discord.Intents.all(), owner_id=pr_secrets.owner_id,
+                   auto_sync_commands=True)
 bot.remove_command("help")
 
 steam_api_key = pr_secrets.steam_api_key
+
 
 # Events
 @bot.event
@@ -49,6 +50,7 @@ async def on_ready():
         guild_count = guild_count + 1
 
     print(f"(In {guild_count} servers in total.)\n\nBain is online. Run \"._logout\" to get Bain offline.")
+
 
 @bot.event
 async def on_command_error(ctx: commands.Context, error):
@@ -85,15 +87,20 @@ async def on_command_error(ctx: commands.Context, error):
     elif isinstance(error, commands.NotOwner):
         await ctx.reply("Sorry - you are not the owner of this bot.")
 
+    elif isinstance(error, discord.errors.NotFound):
+        pass
+
     else:
         print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+
 
 @bot.event
 async def on_voice_state_update(member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
     if not member.id == pr_secrets.bain_id:
         return
     elif before.channel is None:
+        # noinspection PyTypeChecker
         voice: discord.VoiceClient = after.channel.guild.voice_client
         time = 0
         while True:
@@ -105,6 +112,7 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
                 await voice.disconnect(force=True)
             if not voice.is_connected():
                 break
+
 
 @bot.command(name="help")
 async def _help(ctx: commands.Context, command=None):
@@ -157,12 +165,17 @@ ___description__Displays the help page."""
             # Per category
             for __index, __line in enumerate(lines):
                 # Per page
-                cat_embed = discord.Embed(title=f"Help Page/{page_name}", description="\n\n".join(__line)+"\n\n_Tip: Use .help `command` for more details about a command!_", colour=discord.Colour.blurple()).set_footer(text=f"Page {__index+1}/{len(lines)}").set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734")
+                cat_embed = discord.Embed(title=f"Help Page/{page_name}", description="\n\n".join(
+                    __line) + "\n\n_Tip: Use .help `command` for more details about a command!_",
+                                          colour=discord.Colour.blurple()).set_footer(
+                    text=f"Page {__index + 1}/{len(lines)}").set_thumbnail(
+                    url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734")
                 try:
                     embeds[page_name].append(cat_embed)
                 except KeyError:
                     embeds[page_name] = [cat_embed]
-            options.append(discord.SelectOption(label=page_name, description=cat_info[page_name]["description"], emoji=cat_info[page_name]["emoji"]))
+            options.append(discord.SelectOption(label=page_name, description=cat_info[page_name]["description"],
+                                                emoji=cat_info[page_name]["emoji"]))
 
         select = Select(placeholder="Select a category...", options=options)
 
@@ -236,7 +249,10 @@ ___description__Displays the help page."""
         view.disable_on_timeout = True
         view.add_item(select)
 
-        await ctx.reply(content=None, embed=discord.Embed(title="Help Page", description="Select a category to begin!", colour=discord.Colour.blurple()).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734").set_footer(text="Tip: Use .help <command> for more details about a command!"), view=view)
+        await ctx.reply(content=None, embed=discord.Embed(title="Help Page", description="Select a category to begin!",
+                                                          colour=discord.Colour.blurple()).set_thumbnail(
+            url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734").set_footer(
+            text="Tip: Use .help <command> for more details about a command!"), view=view)
 
     else:
         target = None
@@ -251,7 +267,11 @@ ___description__Displays the help page."""
             return
         docstr = target.callback.__doc__.split("___description__")[1]
 
-        await ctx.reply(content=None, embed=discord.Embed(title=f"{bot.command_prefix}{target.qualified_name}", description=f"*{docstr}*", colour=discord.Colour.blurple()).add_field(name="Parameters", value=parameters).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/8/85/Texas_Treasures%2C_Part_2.jpg/revision/latest?cb=20221020182240"))
+        await ctx.reply(content=None, embed=discord.Embed(title=f"{bot.command_prefix}{target.qualified_name}",
+                                                          description=f"*{docstr}*",
+                                                          colour=discord.Colour.blurple()).add_field(name="Parameters",
+                                                                                                     value=parameters).set_thumbnail(
+            url="https://static.wikia.nocookie.net/payday/images/8/85/Texas_Treasures%2C_Part_2.jpg/revision/latest?cb=20221020182240"))
 
 
 # Moderation
@@ -265,6 +285,7 @@ ___description__Assigns a role to a member."""
     await user.add_roles(role)
     await ctx.send(f"Assigned {user.mention} the role of {role}. (Moderator: {ctx.author.mention}.)")
 
+
 @bot.command(name="demote")
 @commands.has_permissions(moderate_members=True)
 async def demote_role(ctx, role: discord.Role, user: discord.Member = None):
@@ -274,6 +295,7 @@ ___parameters__`role` - The role to remove.
 ___description__Removes a role from a member."""
     await user.remove_roles(role)
     await ctx.send(f"Moderator {ctx.author.mention} has fired {user.mention} from the role of {role}.")
+
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -287,6 +309,7 @@ ___description__Deletes messages in a channel."""
     successmsg = await ctx.send(f"Successfully purged/cleared {arg} message(s).")
     await successmsg.delete(delay=5)
 
+
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def purge(ctx, arg):
@@ -294,6 +317,7 @@ async def purge(ctx, arg):
 ___parameters__`arg` - The number of messages to clear.___parameters__
 ___description__Deletes messages in a channel."""
     await ctx.invoke(clear, arg)
+
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -306,7 +330,9 @@ ___description__Timeouts a user."""
     time = humanfriendly.parse_timespan(time)
     await user.timeout(until=discord.utils.utcnow() + datetime.timedelta(seconds=time),
                        reason=f"{ctx.author} - {reason}")
-    await ctx.send(f"{user} has been timed out for {time} seconds by {ctx.author.mention} | \"{reason}\" -{ctx.author}.")
+    await ctx.send(
+        f"{user} has been timed out for {time} seconds by {ctx.author.mention} | \"{reason}\" -{ctx.author}.")
+
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -317,6 +343,7 @@ ___parameters__`user` - The user to remove the timeout from.
 ___description__Removes a timeouts from a user."""
     await user.timeout(until=None, reason=reason)
     await ctx.send(f"Timeout has been removed from {user.mention} by {ctx.author.mention}. [Reason: {reason}]")
+
 
 @bot.command()
 @commands.has_permissions(moderate_members=True)
@@ -332,6 +359,7 @@ ___description__Kicks a user."""
         await user.kick(reason=reason)
         await ctx.reply(f"Successfully kicked {user.mention}. Reason: ``{ctx.author} - {reason}``")
 
+
 @bot.command(description="Bans a user from the server.")
 @commands.has_permissions(moderate_members=True)
 async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=None):
@@ -343,7 +371,7 @@ ___description__Bans a user."""
         await ctx.reply("Specify a user.")
     else:
         if deletemessages == "yes," or deletemessages == "true,":
-            await user.ban(delete_message_days=604800, reason=reason)
+            await user.ban(delete_message_days=7, reason=reason)
             await ctx.reply(
                 f"Successfully banned {user.mention}, and deleted their messages in the past week. Reason: ``{ctx.author} - {reason}``")
         elif deletemessages == "no," or deletemessages == "false,":
@@ -351,18 +379,20 @@ ___description__Bans a user."""
             await ctx.reply(
                 f"Successfully banned {user.mention} (messages were not cleared). Reason: ``{ctx.author} - {reason}``")
 
+
 @bot.command(description="Unbans a user from the server.")
 @commands.has_permissions(moderate_members=True)
 async def unban(ctx, user: discord.User = None, reason=None):
     """___category__Moderation___category__
 ___parameters__`user` - The user to unban.
-`reason` - *Optional*. The reason for the unban, shown in the audit log.___parameters__
+`reason` - *Optional*. The reason for the revocation of the ban, shown in the audit log.___parameters__
 ___description__Unbans a user."""
     if user is None:
         await ctx.reply("Specify a user.")
     else:
         await ctx.guild.unban(user=user, reason=reason)
         await ctx.reply(f"Successfully unbanned {user.mention} from the server. Reason: ``{ctx.author} - {reason}``")
+
 
 @bot.command(description="Kicks members who have been inactive.")
 @commands.has_permissions(moderate_members=True)
@@ -374,7 +404,9 @@ ___description__Prunes members - kicks members who have been inactive."""
     guild = ctx.guild
 
     pruning = await guild.prune_members(days=duration, roles=roles, reason=f"{ctx.author} - reason")
-    await ctx.reply(f"Pruned {pruning} members who were inactive on this server for more than {duration} days. | Reason: {reason}")
+    await ctx.reply(
+        f"Pruned {pruning} members who were inactive on this server for more than {duration} days. | Reason: {reason}")
+
 
 # Server administration
 @bot.command()
@@ -571,6 +603,7 @@ ___description__Adds a role with permission options."""
 
     await ctx.send(embed=addrole_embed, view=addrole_view)
 
+
 @bot.command(name="deleterole")
 @commands.has_permissions(administrator=True)
 async def delrole(ctx, *args):
@@ -620,6 +653,7 @@ ___description__Deletes a role."""
 
     await ctx.send(content=None, embed=delrole_embed, view=delrole_view)
 
+
 @bot.command(name="invite")
 @commands.has_permissions(create_instant_invite=True)
 async def invite(ctx):
@@ -656,6 +690,7 @@ ___description__Creates an invite."""
     invite_view.add_item(revoke_invite)
     await original.edit("Click the button to show the link!", view=invite_view)
 
+
 @bot.command(name="revokeinv")
 @commands.has_permissions(ban_members=True)
 async def revokeinvite(ctx, arg, reason="None."):
@@ -666,6 +701,7 @@ ___description__Revokes an invite."""
     delete_invite = await bot.fetch_invite(url=f"https://discord.gg/{arg1}", with_counts=False, with_expiration=False)
     await delete_invite.delete(reason=reason)
     await ctx.reply(f"Invite \"{arg1}\" has been revoked.")
+
 
 # Tools
 @bot.command()
@@ -679,6 +715,7 @@ ___description__Responds with the bot's latency."""
         color=discord.Colour.green()
     )
     await ctx.reply(embed=pingembed)
+
 
 @bot.command(name="wiki")
 async def cmd_wikipedia(ctx, *args):
@@ -703,6 +740,7 @@ ___description__Gets a result from Wikipedia."""
         await search_wait.edit(content=f"No results for \"{search_keyword}\".")
     except DisambiguationError as disamb_e:
         await search_wait.edit(f"**Disambiguation:** {disamb_e}")
+
 
 @bot.command()
 async def define(ctx, *args):
@@ -762,6 +800,7 @@ ___description__Searches up a word in the dictionary."""
 
         await ctx.reply(content=None, embed=embed, view=view)
 
+
 @bot.command()
 async def poll(ctx, name, *args):
     """___category__Tools___category__
@@ -803,7 +842,10 @@ ___description__Creates a poll for everyone to vote in the server."""
         await interaction.response.defer()
 
     async def poll_vote_callback(interaction):
-        castedvotes[f"{interaction.user.id}"] = poll_options.values[0]
+        try:
+            castedvotes[f"{interaction.user.id}"] = poll_options.values[0]
+        except IndexError:
+            await interaction.response.defer()
         await interaction.response.send_message("Vote updated!", ephemeral=True)
 
     async def poll_end_callback(interaction):
@@ -814,8 +856,8 @@ ___description__Creates a poll for everyone to vote in the server."""
             prepared_poll = ""
             try:
                 winning = \
-                list({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})[0]
-            except ValueError:
+                    list({_i for _i in counted_dict.keys() if counted_dict[_i] == max(set(counted_dict.values()))})[0]
+            except IndexError:
                 winning = "None."
                 prepared_poll = "No votes."
 
@@ -838,7 +880,9 @@ ___description__Creates a poll for everyone to vote in the server."""
                 j_count += 1
 
             if prepared_poll != "No votes.":
-                prepared_poll = "**" + str(counted_dict_copy).replace('Counter(', '').replace(')', '').replace('{', '').replace('}', '').replace('\'', '').replace(", ", "\n**").replace(":", ":**")
+                prepared_poll = "**" + str(counted_dict_copy).replace('Counter(', '').replace(')', '').replace('{',
+                                                                                                               '').replace(
+                    '}', '').replace('\'', '').replace(", ", "\n**").replace(":", ":**")
 
             poll_new_embed = discord.Embed(
                 title=f"POLL: \"{name}\" - Results",
@@ -846,7 +890,8 @@ ___description__Creates a poll for everyone to vote in the server."""
                 color=discord.Colour.green()
             )
             poll_view.on_timeout = None
-            await interaction.response.send_message(content=f"{ctx.author.mention}, your poll results are out:", view=None, embed=poll_new_embed)
+            await interaction.response.send_message(content=f"{ctx.author.mention}, your poll results are out:",
+                                                    view=None, embed=poll_new_embed)
             await interaction.message.delete()
         elif interaction.user != ctx.author:
             await interaction.response.send_message("This poll isn't created by you!", ephemeral=True)
@@ -880,7 +925,9 @@ ___description__Creates a poll for everyone to vote in the server."""
             j_count += 1
 
         if prepared_poll != "No votes.":
-            prepared_poll = "**" + str(counted_dict_copy).replace('Counter(', '').replace(')', '').replace('{', '').replace('}', '').replace('\'', '').replace(", ", "\n**").replace(":", ":**")
+            prepared_poll = "**" + str(counted_dict_copy).replace('Counter(', '').replace(')', '').replace('{',
+                                                                                                           '').replace(
+                '}', '').replace('\'', '').replace(", ", "\n**").replace(":", ":**")
 
         poll_new_embed = discord.Embed(
             title=f"POLL: \"{name}\" - Results",
@@ -895,13 +942,14 @@ ___description__Creates a poll for everyone to vote in the server."""
     poll_vote.callback = poll_vote_callback
     poll_end.callback = poll_end_callback
 
-    poll_view = View(timeout=5)
+    poll_view = View(timeout=300)
     poll_view.on_timeout = poll_timeout
     poll_view.add_item(poll_vote)
     poll_view.add_item(poll_options)
     poll_view.add_item(poll_end)
 
     msg = await ctx.reply(content=None, embed=poll_embed, view=poll_view)
+
 
 @bot.command(name="8ball")
 async def _8ball(ctx, arg: str):
@@ -932,7 +980,9 @@ ___description__Get responses to your questions."""
                        "Outlook not so good.",
                        "Very doubtful."]
 
-    await ctx.reply(content=None, embed=discord.Embed(title="8-ball", description=random.choice(possibleanswers), colour=discord.Colour.blurple()).set_footer(text=arg))
+    await ctx.reply(content=None, embed=discord.Embed(title="8-ball", description=random.choice(possibleanswers),
+                                                      colour=discord.Colour.blurple()).set_footer(text=arg))
+
 
 @bot.command(name="random")
 async def _random(ctx, *numbers):
@@ -942,11 +992,14 @@ ___parameters__
 `lower` - Your lower limit for the random number.
 `upper` - Your upper limit for the random number.___parameters__
 ___description__Generate a random number."""
-    numbers = [int(i.replace(" ", "")) for i in (" ".join(numbers).split(",") if len(" ".join(numbers).split(",")) > 1 else numbers)]
+    numbers = [int(i.replace(" ", "")) for i in
+               (" ".join(numbers).split(",") if len(" ".join(numbers).split(",")) > 1 else numbers)]
     embed = discord.Embed(title="CRIME.NET/Random Number Generator", colour=discord.Colour.blurple())
     embed.add_field(name="Result", value=baintools.format_number(random.randint(*numbers)), inline=False)
-    embed.set_footer(text=f"Lower limit: {baintools.format_number(numbers[0])}; Upper limit: {baintools.format_number(numbers[1])}\nProcessing ID: {baintools.generate_transaction_id(10)}")
+    embed.set_footer(
+        text=f"Lower limit: {baintools.format_number(numbers[0])}; Upper limit: {baintools.format_number(numbers[1])}\nProcessing ID: {baintools.generate_transaction_id(10)}")
     await ctx.reply(content=None, embed=embed)
+
 
 @bot.command()
 async def numberguess(ctx, arg: int):
@@ -955,7 +1008,8 @@ ___parameters__`arg` - A number, which is the answer. Type "leaderboard" for the
 ___description__Lets the bot guess a number, to see how close it is to your number.
 The limit for guessing is `±100`."""
     if arg > 100 or arg < -100:
-        await throw_crimenet_error(ctx, 400, "Number is either too large or too small. Must be within the range of` `-100` `to` `100` `inclusive.")
+        await throw_crimenet_error(ctx, 400,
+                                   "Number is either too large or too small. Must be within the range of` `-100` `to` `100` `inclusive.")
         return
 
     bot_guess = random.randint(-100, 100)
@@ -976,7 +1030,10 @@ The limit for guessing is `±100`."""
     elif res == "same":
         diff = "Tie! That's... really rare!"
 
-    await ctx.reply(content=None, embed=discord.Embed(title="Number Guessing", description=f"**Your guess:** {arg}\n**Bain's guess:** {bot_guess}\n\n*{diff}*", colour=discord.Color.blurple()))
+    await ctx.reply(content=None, embed=discord.Embed(title="Number Guessing",
+                                                      description=f"**Your guess:** {arg}\n**Bain's guess:** {bot_guess}\n\n*{diff}*",
+                                                      colour=discord.Color.blurple()))
+
 
 # Trolling
 @bot.command()
@@ -1017,6 +1074,7 @@ ___description__Generates a fake Nitro claim embed."""
 
     await ctx.send(embed=nitroembed, view=view)
 
+
 @bot.command(name="tryitandsee")
 async def _tryitandsee(ctx, user: discord.Member = None):
     """___category__General___category__
@@ -1030,6 +1088,7 @@ ___description__Tell someone to try it and see."""
         await ctx.reply(content=f"{user.mention}, from {ctx.author},\nhttps://tryitands.ee")
     finally:
         await ctx.message.delete()
+
 
 @bot.command()
 async def kill(ctx, *, arg: str):
@@ -1072,7 +1131,9 @@ ___description__Kills a user (verbally)."""
                 f"and go under a full-style SWAT, FBI, and DHS assault just to find out who ratted you "
                 f"out!")
         else:
-            await ctx.send(f"<:glock_17:966176633398644757> {ctx.message.author.mention} killed {arg} with {quotenumber}")
+            await ctx.send(
+                f"<:glock_17:966176633398644757> {ctx.message.author.mention} killed {arg} with {quotenumber}")
+
 
 @bot.command()
 async def hack(ctx, user: discord.Member):
@@ -1565,6 +1626,7 @@ ___description__Hacks a user."""
 
     await ctx.reply(content=None, embed=hack_lobby, view=hack_view)
 
+
 @bot.command()
 async def rickroll(ctx, user: discord.Member = None):
     """___category__General___category__
@@ -1574,11 +1636,14 @@ ___parameters__**Quick Note:** The rickroll will be sent to everyone. Specifying
 ___description__Rickrolls a user (and whoever that sees it)."""
     if user is None:
         user = ctx.author
-    embed = discord.Embed(title=":)", description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message... Teehee!", colour=discord.Color.blurple())
+    embed = discord.Embed(title=":)",
+                          description=f"You have been rolled by {ctx.author.mention}. You cannot delete this message... Teehee!",
+                          colour=discord.Color.blurple())
     embed.set_image(url="https://media.tenor.com/_4YgA77ExHEAAAAd/rick-roll.gif")
 
     await ctx.reply(content=f"{user.mention}:" if user != ctx.author else None, embed=embed)
     await ctx.message.delete()
+
 
 # Voice
 @bot.command()
@@ -1596,6 +1661,7 @@ async def join(ctx):
         else:
             await ctx.reply(f"An error occured.\nError: `{e}`")
 
+
 @bot.command()
 async def leave(ctx):
     try:
@@ -1603,11 +1669,13 @@ async def leave(ctx):
     except Exception:
         await ctx.reply("Error. Most likely that I had not been in a voice channel in the first place.")
 
+
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def disconnect(ctx, user: discord.Member, reason=None):
     try:
         if ctx.author.top_role > user.top_role:
+            # noinspection PyTypeChecker
             await user.move_to(channel=None, reason=reason)
             await ctx.reply(f"Disconnected {user}.")
         else:
@@ -1615,9 +1683,11 @@ async def disconnect(ctx, user: discord.Member, reason=None):
     except Exception:
         await ctx.reply("An error occured.")
 
+
 @bot.command()
 async def stop(ctx):
     await ctx.invoke(leave)
+
 
 @bot.command()
 async def play(ctx: commands.Context, *, song: str):
@@ -1631,7 +1701,9 @@ async def play(ctx: commands.Context, *, song: str):
     except Exception as e:
         if str(e) == "'NoneType' object has no attribute 'channel'":
             await origin_msg.delete()
-            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error", description="You are not connected to a voice channel.", colour=discord.Color.red()))
+            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error",
+                                                              description="You are not connected to a voice channel.",
+                                                              colour=discord.Color.red()))
     else:
         async with ctx.typing():
             await origin_msg.edit(content="`Updating path...`")
@@ -1641,12 +1713,14 @@ async def play(ctx: commands.Context, *, song: str):
             for i in list_of_files:
                 if i.startswith(str(ctx.author.guild.id)):
                     try:
-                        os.remove(pr_secrets.os_dir_music+"\\"+i)
+                        os.remove(pr_secrets.os_dir_music + "\\" + i)
                     except PermissionError:
                         pass
         async with ctx.typing():
             await origin_msg.edit(content="`Downloading song...`")
-            subprocess.Popen(f"{sys.executable} {spotdl.__main__.__file__} download \"{spotify_link}\" --output \"{pr_secrets.os_dir_music}\\{ctx.author.guild.id}{'___{artists} - {title}.{output-ext}'}\" --overwrite force", stdout=log_file, stderr=log_file, shell=True)
+            subprocess.Popen(
+                f"{sys.executable} {spotdl.__main__.__file__} download \"{spotify_link}\" --output \"{pr_secrets.os_dir_music}\\{ctx.author.guild.id}{'___{artists} - {title}.{output-ext}'}\" --overwrite force",
+                stdout=log_file, stderr=log_file, shell=True)
             time = 0
             while True:
                 await asyncio.sleep(1)
@@ -1655,7 +1729,8 @@ async def play(ctx: commands.Context, *, song: str):
                     file = [i for i in os.listdir(pr_secrets.os_dir_music) if i.startswith(str(ctx.author.guild.id))][0]
                 except IndexError:
                     if time >= 60:
-                        await throw_crimenet_error(ctx, 400, "`**TIMEOUT** - `Download failed - likely because of a lookup error: Spotify couldn't find your song.")
+                        await throw_crimenet_error(ctx, 400,
+                                                   "`**TIMEOUT** - `Download failed - likely because of a lookup error: Spotify couldn't find your song.")
                         return
                     else:
                         continue
@@ -1669,13 +1744,18 @@ async def play(ctx: commands.Context, *, song: str):
                 connection = await channel.connect()
         except discord.errors.ClientException:
             await origin_msg.delete()
-            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error", description="Audio is already playing in a voice channel.", colour=discord.Color.red()))
+            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player: Error",
+                                                              description="Audio is already playing in a voice channel.",
+                                                              colour=discord.Color.red()))
         else:
             async with ctx.typing():
                 connection.play(source)
 
             await origin_msg.delete()
-            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player", description=f"Now playing: **{[i for i in os.listdir(pr_secrets.os_dir_music) if i.startswith(str(ctx.author.guild.id))][0].split(str(ctx.author.guild.id)+'___')[1].replace('.mp3', '')}**", colour=discord.Color.blurple()))
+            await ctx.reply(content=None, embed=discord.Embed(title="Audio Player",
+                                                              description=f"Now playing: **{[i for i in os.listdir(pr_secrets.os_dir_music) if i.startswith(str(ctx.author.guild.id))][0].split(str(ctx.author.guild.id) + '___')[1].replace('.mp3', '')}**",
+                                                              colour=discord.Color.blurple()))
+
 
 # Player system/Currency MAIN
 @bot.command()
@@ -1689,16 +1769,25 @@ async def shop(ctx):
         if info["valid"]:
             information = await get_item(item)
             try:
-                items[information["category"]].append({"name": information["name"], "desc": information["description"], "category": string.capwords(information["type"])+", "+string.capwords(information["slot"]), "emoji": information["emoji"], "cost": information["data"]["cost"]})
+                items[information["category"]].append({"name": information["name"], "desc": information["description"],
+                                                       "category": string.capwords(
+                                                           information["type"]) + ", " + string.capwords(
+                                                           information["slot"]), "emoji": information["emoji"],
+                                                       "cost": information["data"]["cost"]})
             except KeyError:
-                items[information["category"]] = [{"name": information["name"], "desc": information["description"], "category": string.capwords(information["type"])+", "+string.capwords(information["slot"]), "emoji": information["emoji"], "cost": information["data"]["cost"]}]
+                items[information["category"]] = [{"name": information["name"], "desc": information["description"],
+                                                   "category": string.capwords(
+                                                       information["type"]) + ", " + string.capwords(
+                                                       information["slot"]), "emoji": information["emoji"],
+                                                   "cost": information["data"]["cost"]}]
 
     select_options = []
     embeds = {}
 
     for category, item_list in items.items():
         cat_info = await get_category_desc(category)
-        select_options.append(discord.SelectOption(label=cat_info["name"], description=cat_info["description"], emoji=cat_info["emoji"]))
+        select_options.append(
+            discord.SelectOption(label=cat_info["name"], description=cat_info["description"], emoji=cat_info["emoji"]))
         embeds.update({cat_info['name']: []})
         page_count = 0
         split_pages = baintools.split_page(item_list, 5)
@@ -1708,7 +1797,10 @@ async def shop(ctx):
             for item in items_in_page:
                 # For every item in the page. Do stuff every item.
                 description += f"{item['emoji']} **{item['name']}** ({item['category']})\n*{item['desc']}*\n${baintools.format_number(item['cost'])}\n\n"
-            embed = discord.Embed(title=f"CRIME.NET/Blackmarket/{cat_info['name']}", description=f"_Use `{bot.command_prefix}item` for more information about an item._\n\n"+description, colour=discord.Colour.blurple()).set_footer(text=f"Page {page_count+1}/{len(split_pages)}")
+            embed = discord.Embed(title=f"CRIME.NET/Blackmarket/{cat_info['name']}",
+                                  description=f"_Use `{bot.command_prefix}item` for more information about an item._\n\n" + description,
+                                  colour=discord.Colour.blurple()).set_footer(
+                text=f"Page {page_count + 1}/{len(split_pages)}")
             embeds[cat_info['name']].append(embed)
             page_count += 1
 
@@ -1730,9 +1822,11 @@ async def shop(ctx):
     async def modal_callback(interaction):
         if interaction.user == ctx.author:
             try:
-                await interaction.response.edit_message(embed=embeds[select.values[0]][int(modal.children[0].value)-1])
+                await interaction.response.edit_message(
+                    embed=embeds[select.values[0]][int(modal.children[0].value) - 1])
             except (TypeError, IndexError, ValueError) as error_msg:
-                await interaction.response.send_message(content=f"Input something valid.\n`{error_msg}`", ephemeral=True)
+                await interaction.response.send_message(content=f"Input something valid.\n`{error_msg}`",
+                                                        ephemeral=True)
 
     modal.callback = modal_callback
 
@@ -1747,7 +1841,7 @@ async def shop(ctx):
                 await interaction.followup.send(content="It's already the first page!", ephemeral=True, wait=True)
             else:
                 storage.page -= 1
-                new_embed = embeds[select.values[0]][storage.page-1]
+                new_embed = embeds[select.values[0]][storage.page - 1]
                 await interaction.response.edit_message(embed=new_embed)
 
     async def button_next_callback(interaction):
@@ -1780,7 +1874,10 @@ async def shop(ctx):
     view = View()
     view.disable_on_timeout = True
     view.add_item(select)
-    await ctx.reply(embed=discord.Embed(title="CRIME.NET/Blackmarket/Home_Page", description="Select a category below to get started!\n"+f"_Use `{bot.command_prefix}item` for more information about an item._", colour=discord.Color.blurple()), view=view)
+    await ctx.reply(embed=discord.Embed(title="CRIME.NET/Blackmarket/Home_Page",
+                                        description="Select a category below to get started!\n" + f"_Use `{bot.command_prefix}item` for more information about an item._",
+                                        colour=discord.Color.blurple()), view=view)
+
 
 @bot.command()
 async def buy(ctx, *args):
@@ -1818,12 +1915,19 @@ async def buy(ctx, *args):
                     data[str(ctx.author.id)]["cash"] -= cost
                     data[str(ctx.author.id)][key] += amount
                     await player_save(data)
-                    new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {baintools.format_number(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${baintools.format_number(items[key]['data']['cost']*amount)}", colour=discord.Color.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
-                    await interaction.followup.edit_message(message_id=interaction.message.id, embed=new_embed, view=None)
+                    new_embed = discord.Embed(title="Blackmarket/Transaction_Successful",
+                                              description=f"Your purchase of {baintools.format_number(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${baintools.format_number(items[key]['data']['cost'] * amount)}",
+                                              colour=discord.Color.blurple()).set_thumbnail(
+                        url=items[key]["image_link"]).set_footer(
+                        text=f"Transction ID: {baintools.generate_transaction_id(20)}")
+                    await interaction.followup.edit_message(message_id=interaction.message.id, embed=new_embed,
+                                                            view=None)
 
             async def button_cancel_callback(interaction: discord.Interaction):
                 if interaction.user == ctx.author:
-                    await interaction.response.edit_message(content=None, embed=discord.Embed(title="Blackmarket/Transaction_Cancelled", description="Transaction has been cancelled.", colour=discord.Color.red()), view=None)
+                    await interaction.response.edit_message(content=None, embed=discord.Embed(
+                        title="Blackmarket/Transaction_Cancelled", description="Transaction has been cancelled.",
+                        colour=discord.Color.red()), view=None)
 
             button_confirm.callback = button_confirm_callback
             button_cancel.callback = button_cancel_callback
@@ -1837,12 +1941,16 @@ async def buy(ctx, *args):
             data[str(ctx.author.id)]["cash"] -= cost
             data[str(ctx.author.id)][key] += amount
             await player_save(data)
-            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your purchase of {baintools.format_number(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${baintools.format_number(items[key]['data']['cost'])}", colour=discord.Colour.blurple()).set_thumbnail(url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
+            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful",
+                                      description=f"Your purchase of {baintools.format_number(amount)}x {items[key]['name']} has succeeded.\n\n**Total Cost**\n${baintools.format_number(items[key]['data']['cost'])}",
+                                      colour=discord.Colour.blurple()).set_thumbnail(
+                url=items[key]["image_link"]).set_footer(text=f"Transction ID: {baintools.generate_transaction_id(20)}")
             await ctx.reply(embed=new_embed, view=None)
         else:
             await throw_crimenet_error(ctx, 400, "Invalid amount.")
     else:
         await throw_crimenet_error(ctx, 400, "Insufficient cash.")
+
 
 @bot.command()
 async def sell(ctx, *args):
@@ -1895,7 +2003,9 @@ async def sell(ctx, *args):
         data[str(ctx.author.id)][key] -= 1
         data[str(ctx.author.id)]["cash"] += (sell_data["data"]["cost"] * 0.25).__floor__()
         await player_save(data)
-        embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{baintools.format_number(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
+        embed = discord.Embed(title="Blackmarket/Transaction_Successful",
+                              description=f"Your transaction of selling **{baintools.format_number(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.",
+                              colour=discord.Colour.blurple())
         await ctx.reply(content=None, embed=embed)
     elif amount > 1:
         button_confirm = Button(label="Confirm", style=discord.ButtonStyle.blurple)
@@ -1905,11 +2015,15 @@ async def sell(ctx, *args):
             data[str(ctx.author.id)][key] -= amount
             data[str(ctx.author.id)]["cash"] += (sell_data["data"]["cost"] * 0.25 * amount).__floor__()
             await player_save(data)
-            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful", description=f"Your transaction of selling **{baintools.format_number(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour = discord.Colour.blurple())
+            new_embed = discord.Embed(title="Blackmarket/Transaction_Successful",
+                                      description=f"Your transaction of selling **{baintools.format_number(amount)}x {sell_data['name']}** has succeeded.\n\nYou have been paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.",
+                                      colour=discord.Colour.blurple())
             await interaction.response.edit_message(embed=new_embed, view=None)
 
         async def button_cancel_callback(interaction: discord.Interaction):
-            await interaction.response.edit_message(embed=discord.Embed(title="Blackmarket/Transaction_Cancelled", description="Your transaction has been cancelled.", colour=discord.Colour.red()), view=None)
+            await interaction.response.edit_message(embed=discord.Embed(title="Blackmarket/Transaction_Cancelled",
+                                                                        description="Your transaction has been cancelled.",
+                                                                        colour=discord.Colour.red()), view=None)
 
         button_confirm.callback = button_confirm_callback
         button_cancel.callback = button_cancel_callback
@@ -1917,10 +2031,13 @@ async def sell(ctx, *args):
         view.disable_on_timeout = True
         view.add_item(button_confirm)
         view.add_item(button_cancel)
-        confirmation_embed = discord.Embed(title="Blackmarket/Transaction/Pending", description=f"Are you sure you want to sell **{baintools.format_number(amount)}x {sell_data['name']}**?\n\nYou will be paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.", colour=discord.Colour.blurple())
+        confirmation_embed = discord.Embed(title="Blackmarket/Transaction/Pending",
+                                           description=f"Are you sure you want to sell **{baintools.format_number(amount)}x {sell_data['name']}**?\n\nYou will be paid **${baintools.format_number((sell_data['data']['cost'] * 0.25 * amount).__floor__())}**.",
+                                           colour=discord.Colour.blurple())
         await ctx.reply(embed=confirmation_embed, view=view)
     else:
         await throw_crimenet_error(ctx, 400, "Invalid amount.")
+
 
 @bot.command()
 async def inspect(ctx, *item_name):
@@ -1942,18 +2059,21 @@ async def inspect(ctx, *item_name):
         attr_str = ""
         for attr, val in data['data'].items():
             if type(val) != list and attr != "cost":
-                attr_str += f"**{string.capwords(attr.replace('_', ' ')).replace('Rate Of Fire', 'Rate of Fire').replace('Reload', 'Reload Time (seconds)')}:** {'**'+baintools.format_number(val)+'**' if val is not None else '-'}\n"
+                attr_str += f"**{string.capwords(attr.replace('_', ' ')).replace('Rate Of Fire', 'Rate of Fire').replace('Reload', 'Reload Time (seconds)')}:** {'**' + baintools.format_number(val) + '**' if val is not None else '-'}\n"
 
         description += special_list_str
         description += attr_str
         description += cost_str
 
-        embed = discord.Embed(title=data["name"], description=description, colour=discord.Colour.blurple()).set_thumbnail(url=data["image_link"])
+        embed = discord.Embed(title=data["name"], description=description,
+                              colour=discord.Colour.blurple()).set_thumbnail(url=data["image_link"])
         await ctx.reply(embed=embed)
+
 
 @bot.command(name="item")
 async def inspect_revoke_item(ctx, *item_name):
     await ctx.invoke(inspect, *item_name)
+
 
 @bot.command()
 async def heist(ctx, *_contract_name: str):
@@ -2009,7 +2129,8 @@ async def crimespree(ctx: commands.Context, start_level=None):
     await player_create(ctx, ctx.author.id)
     data = await player_database()
     cs_data = data[str(ctx.author.id)]["crimespree"]
-    cs_stats = "Currently not on a crime spree." if not cs_data["in_progress"] else f"**Level:** {cs_data['level']}\n**Cash Reward:** ${baintools.format_number(cs_data['cash'])}\n**EXP Reward:** ${baintools.format_number(cs_data['experience'])}\n**Continental Coins Reward:** {baintools.format_number(cs_data['continental_coins'])}"
+    cs_stats = "Currently not on a crime spree." if not cs_data[
+        "in_progress"] else f"**Level:** {cs_data['level']}\n**Cash Reward:** ${baintools.format_number(cs_data['cash'])}\n**EXP Reward:** ${baintools.format_number(cs_data['experience'])}\n**Continental Coins Reward:** {baintools.format_number(cs_data['continental_coins'])}"
     if start_level is not None:
         try:
             start_level = int(start_level)
@@ -2018,7 +2139,9 @@ async def crimespree(ctx: commands.Context, start_level=None):
                 await ctx.invoke(crimespree_end)
                 return
             else:
-                await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/{ctx.author.name}/Crime_Spree", description=f"**Crime Spree Statistics**\n{cs_stats}", colour=discord.Colour.blurple()))
+                await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/{ctx.author.name}/Crime_Spree",
+                                                                  description=f"**Crime Spree Statistics**\n{cs_stats}",
+                                                                  colour=discord.Colour.blurple()))
                 return
     else:
         start_level = 0
@@ -2043,7 +2166,8 @@ async def crimespree(ctx: commands.Context, start_level=None):
         # Already on a crime spree.
         pass
 
-    res = await getattr(baintools.PlayerCrimeSpree, baintools.heist_autocorrect(random.choice(baintools.heist_list)))(ctx)
+    res = await getattr(baintools.PlayerCrimeSpree, baintools.heist_autocorrect(random.choice(baintools.heist_list)))(
+        ctx)
     if res[0]:
         # Successful Heist!
         data = await player_database()
@@ -2055,19 +2179,25 @@ async def crimespree(ctx: commands.Context, start_level=None):
         data[str(ctx.author.id)]["crimespree"]["level"] += cs_cc[res[1]]["level"]
         data[str(ctx.author.id)]["crimespree"]["levels_completed"] += 1
         await player_save(data)
-        await ctx.reply(content=None, embed=discord.Embed(title="Heist Successful [Crime Spree]", description=f"You have earned a total of ${baintools.format_number(res[2].loot)} in this heist, as well as {baintools.format_number(res[2].exp)} EXP. You can cash them out when you end your crime spree.", colour=discord.Color.blurple()))
+        await ctx.reply(content=None, embed=discord.Embed(title="Heist Successful [Crime Spree]",
+                                                          description=f"You have earned a total of ${baintools.format_number(res[2].loot)} in this heist, as well as {baintools.format_number(res[2].exp)} EXP. You can cash them out when you end your crime spree.",
+                                                          colour=discord.Color.blurple()))
     elif not res[0]:
         # Heist failed!
         data = await player_database()
-        data[str(ctx.author.id)]["exp"] += cs_data["experience"]
-        data[str(ctx.author.id)]["cash"] += (cs_data["cash"]*0.2).__floor__()
-        data[str(ctx.author.id)]["offshore"] += (cs_data["cash"]*0.8).__floor__()
+        try:
+            data[str(ctx.author.id)]["exp"] += cs_data["experience"]
+        except KeyError:
+            return
+        data[str(ctx.author.id)]["cash"] += (cs_data["cash"] * 0.2).__floor__()
+        data[str(ctx.author.id)]["offshore"] += (cs_data["cash"] * 0.8).__floor__()
         data[str(ctx.author.id)]["continental_coins"] += cs_data["continental_coins"]
         if cs_data["level"] > data[str(ctx.author.id)]["crimespree_record"]:
             data[str(ctx.author.id)]["crimespree_record"] = cs_data["level"]
 
         # Adjusting experience.
-        while data[str(ctx.author.id)]["exp"] >= baintools.calculate_experience(data[str(ctx.author.id)]["reputation"]) and \
+        while data[str(ctx.author.id)]["exp"] >= baintools.calculate_experience(
+                data[str(ctx.author.id)]["reputation"]) and \
                 data[str(ctx.author.id)]["reputation"] < 100:
             data[str(ctx.author.id)]["exp"] = data[str(ctx.author.id)]["exp"] - baintools.calculate_experience(
                 data[str(ctx.author.id)]["reputation"])
@@ -2083,7 +2213,10 @@ async def crimespree(ctx: commands.Context, start_level=None):
         data[str(ctx.author.id)]["crimespree"] = {"in_progress": False}
 
         await player_save(data)
-        await ctx.reply(content=None, embed=discord.Embed(title="Heist Failed [Crime Spree]", description=f"You failed your crime spree. Your rewards have been added to your inventory, and you may start a new spree again.", colour=discord.Color.red()))
+        await ctx.reply(content=None, embed=discord.Embed(title="Heist Failed [Crime Spree]",
+                                                          description=f"You failed your crime spree. Your rewards have been added to your inventory, and you may start a new spree again.",
+                                                          colour=discord.Color.red()))
+
 
 @crimespree.command(name="stats")
 async def crimespree_stats(ctx):
@@ -2093,6 +2226,7 @@ async def crimespree_stats(ctx):
     await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/{ctx.author.name}/Crime_Spree",
                                                       description=f"**Crime Spree Statistics**\n{cs_stats}",
                                                       colour=discord.Colour.blurple()))
+
 
 @crimespree.command(name="end")
 async def crimespree_end(ctx):
@@ -2122,17 +2256,24 @@ async def crimespree_end(ctx):
             with open("item_database.json") as item_f:
                 item_data: dict = json.load(item_f)
             for _ in range(cs_data["levels_completed"]):
-                data[str(ctx.author.id)][random.choice([i for i in list(item_data.keys()) if i.startswith("wmod_")])] += 1
+                data[str(ctx.author.id)][
+                    random.choice([i for i in list(item_data.keys()) if i.startswith("wmod_")])] += 1
 
             # Reset Crime Spree data.
             data[str(ctx.author.id)]["crimespree"] = {"in_progress": False}
 
             await player_save(data)
-            await interaction.response.edit_message(content=None, embed=discord.Embed(title="Crime Spree cashed out!", description="Your rewards have been added to your inventory.", colour=discord.Color.green()), view=None)
+            await interaction.response.edit_message(content=None, embed=discord.Embed(title="Crime Spree cashed out!",
+                                                                                      description="Your rewards have been added to your inventory.",
+                                                                                      colour=discord.Color.green()),
+                                                    view=None)
 
     async def button_cancel_callback(interaction: discord.Interaction):
         if interaction.user == ctx.author:
-            await interaction.response.edit_message(content=None, embed=discord.Embed(title="Crime Spree", description="Operation cancelled.", colour=discord.Colour.red()), view=None)
+            await interaction.response.edit_message(content=None, embed=discord.Embed(title="Crime Spree",
+                                                                                      description="Operation cancelled.",
+                                                                                      colour=discord.Colour.red()),
+                                                    view=None)
 
     button_confirm.callback = button_confirm_callback
     button_cancel.callback = button_cancel_callback
@@ -2140,7 +2281,9 @@ async def crimespree_end(ctx):
     view.disable_on_timeout = True
     view.add_item(button_confirm)
     view.add_item(button_cancel)
-    await ctx.reply(content=None, embed=discord.Embed(title="Crime Spree", description="Would you like to claim your rewards of your crime spree? This cannot be undone!\n\n(You can still start a new spree.)", colour=discord.Color.blurple()), view=view)
+    await ctx.reply(content=None, embed=discord.Embed(title="Crime Spree",
+                                                      description="Would you like to claim your rewards of your crime spree? This cannot be undone!\n\n(You can still start a new spree.)",
+                                                      colour=discord.Color.blurple()), view=view)
 
 
 # Player system/Profile
@@ -2186,10 +2329,12 @@ async def profile(ctx, user: discord.Member = None):
 
     await ctx.reply(embed=embed, view=view)
 
+
 @bot.group(name="customize")
 async def _customize(ctx: commands.Context):
     if ctx.invoked_subcommand is None:
         await throw_crimenet_error(ctx, 404)
+
 
 @_customize.command(name="character")
 async def _customize_char(ctx, *char_name):
@@ -2198,12 +2343,16 @@ async def _customize_char(ctx, *char_name):
     char = "_".join(char_name).lower()
     data[str(ctx.author.id)]["char"] = char
     await player_save(data)
-    embed = discord.Embed(title="CRIME.NET/Profile", description=f"`Successfully changed your character to {(await get_item(char))['name']}.`", colour=discord.Colour.blurple()).set_thumbnail(url=(await get_item(char))['image_mask'])
+    embed = discord.Embed(title="CRIME.NET/Profile",
+                          description=f"`Successfully changed your character to {(await get_item(char))['name']}.`",
+                          colour=discord.Colour.blurple()).set_thumbnail(url=(await get_item(char))['image_mask'])
     await ctx.reply(embed=embed)
+
 
 @_customize.command(name="char")
 async def _customize_char_revoke_char(ctx, *args):
     await ctx.invoke(_customize_char, *args)
+
 
 @_customize.command(name="weapon")
 async def _customize_weapon(ctx, *weapon_name):
@@ -2216,13 +2365,18 @@ async def _customize_weapon(ctx, *weapon_name):
         data = await player_database()
         if data[str(ctx.author.id)]["w_" + "_".join(weapon_name)] > 0:
             await player_setattr(str(ctx.author.id), "weapon", "w_" + "_".join(weapon_name).lower().replace(".", ""))
-            await ctx.reply(embed=discord.Embed(title="CRIME.NET/Profile", description=f"Successfully changed your signature weapon to `{(await get_item('w_' + ' '.join(weapon_name)))['name']}`.", colour=discord.Colour.blurple()).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/7/73/AMCAR-icon.png/revision/latest/scale-to-width-down/200?cb=20130806182054"))
+            await ctx.reply(embed=discord.Embed(title="CRIME.NET/Profile",
+                                                description=f"Successfully changed your signature weapon to `{(await get_item('w_' + ' '.join(weapon_name)))['name']}`.",
+                                                colour=discord.Colour.blurple()).set_thumbnail(
+                url="https://static.wikia.nocookie.net/payday/images/7/73/AMCAR-icon.png/revision/latest/scale-to-width-down/200?cb=20130806182054"))
         else:
             await throw_crimenet_error(ctx, 400, note="You don't own this weapon.")
+
 
 @_customize.command(name="wp")
 async def _customize_weapon_revoke_wp(ctx, *args):
     await ctx.invoke(_customize_weapon, *args)
+
 
 @bot.command()
 async def inventory(ctx, user: discord.Member = None):
@@ -2241,18 +2395,23 @@ async def inventory(ctx, user: discord.Member = None):
         if (await get_item(attr))["valid"]:
             try:
                 if val > 0:
-                    embed_data[((await get_item(attr))["category"])].append(str(f"{baintools.format_number(val)}x "+(await get_item(attr))["name"]))
+                    embed_data[((await get_item(attr))["category"])].append(
+                        str(f"{baintools.format_number(val)}x " + (await get_item(attr))["name"]))
             except KeyError:
                 if val > 0:
-                    embed_data[((await get_item(attr))["category"])] = [str(f"{baintools.format_number(val)}x {(await get_item(attr))['name']}")]
+                    embed_data[((await get_item(attr))["category"])] = [
+                        str(f"{baintools.format_number(val)}x {(await get_item(attr))['name']}")]
 
     embeds = []
     select_options = []
     for category, items in embed_data.items():
         category_data = await get_category_desc(category)
-        embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Inventory", description=f"**Inventory/{category_data['name']}\n**"+"\n".join(items), colour=discord.Color.blurple())
+        embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Inventory",
+                              description=f"**Inventory/{category_data['name']}\n**" + "\n".join(items),
+                              colour=discord.Color.blurple())
         embed.set_thumbnail(url=user.avatar)
-        option = discord.SelectOption(label=category_data["name"], description=category_data["description"], emoji=category_data["emoji"])
+        option = discord.SelectOption(label=category_data["name"], description=category_data["description"],
+                                      emoji=category_data["emoji"])
         embeds.append(embed)
         select_options.append(option)
 
@@ -2273,11 +2432,13 @@ async def inventory(ctx, user: discord.Member = None):
 
     await ctx.reply(embed=embeds[0], view=view)
 
+
 @bot.command(name="inv")
 async def inventory_invoke_inv(ctx, user: discord.Member = None):
     if user is None:
         user = ctx.author
     await ctx.invoke(inventory, user)
+
 
 @bot.command()
 async def balance(ctx, user: discord.Member = None):
@@ -2296,12 +2457,244 @@ async def balance(ctx, user: discord.Member = None):
         except (KeyError, TypeError):
             pass
 
-    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance", description=f"**Cash:** ${baintools.format_number(cash)}\n**Offshore Account:** ${baintools.format_number(offshore)}\n**Continental Coins:** {continental} [Total: ${baintools.format_number(cash+offshore+(offshore*10000))}]\n**Item Worth:** ${baintools.format_number(item_worth*0.25)}\n\n**Net Worth:** ${baintools.format_number(cash+offshore+(item_worth*0.25))}", colour=discord.Colour.blurple())
+    embed = discord.Embed(title=f"CRIME.NET/{user.name.replace(' ', '_')}/Balance",
+                          description=f"**Cash:** ${baintools.format_number(cash)}\n**Offshore Account:** ${baintools.format_number(offshore)}\n**Continental Coins:** {continental} [Total: ${baintools.format_number(cash + offshore + (offshore * 10000))}]\n**Item Worth:** ${baintools.format_number(int((item_worth * 0.25).__floor__()))}\n\n**Net Worth:** ${baintools.format_number(cash + offshore + (item_worth * 0.25))}",
+                          colour=discord.Colour.blurple())
     await ctx.reply(content=None, embed=embed)
+
 
 @bot.command(name="bal")
 async def balance_invoke_bal(ctx, user: discord.Member = None):
     await ctx.invoke(balance, user)
+
+
+@bot.command(name="fight")
+async def fight(ctx, user: discord.Member):
+    if ctx.author == user:
+        await throw_crimenet_error(ctx, 400, "You cannot fight yourself.")
+        return
+
+    class Player:
+        def __init__(self, _primary="w_amcar", _secondary="w_chimano88"):
+            self.health = 4000
+            self.downs = 1
+            self.primary = _primary
+            self.secondary = _secondary
+            self.faks = 14
+
+            self.status = \
+                {
+                    "w_slot": 2,  # 1 for primary, 2 for secondary. Defaults to secondary.
+                    "is_downed": False,
+                    "is_dead": False
+                }
+
+        async def take_damage(self, wep):
+            with open("item_database.json") as f:
+                wep_data = json.load(f)
+
+            stats = wep_data[self.primary]["data"]
+            __stab = stats["stability"] / 100
+            __acc = stats["accuracy"] / 100
+            __dmg = stats["damage"]
+            __mag = stats["magazine"]
+            _round_dmg = __dmg * __stab * __acc
+            _total_dmg = int(round(_round_dmg * __mag, 0))
+
+            if self.health <= _total_dmg:
+                # Go down.
+                if self.downs == 1:
+                    # Player still has downs, deduct a down.
+                    self.status["is_downed"] = True
+                    self.downs = 0
+                    self.health = 4000
+                    await asyncio.sleep(5)
+                    self.status["is_downed"] = False
+                else:
+                    # Player has no downs, determine as loser.
+                    self.health = 0
+                    self.status["is_downed"] = True
+                    self.status["is_dead"] = True
+            else:
+                self.health -= _total_dmg
+
+        def swap_weapon(self):
+            if self.status["w_slot"] == 1:
+                self.status["w_slot"] = 2
+            else:
+                self.status["w_slot"] = 1
+
+        def use_fak(self):
+            if self.health > 0:
+                if self.faks > 0:
+                    self.faks -= 1
+                    self.health = 4000
+                else:
+                    pass
+
+    p1 = None
+    p2 = None
+
+    class TempData:
+        def __init__(self):
+            self.p1_ready = False
+            self.p2_ready = False
+            self.fight_ended = False
+
+    tempdata = TempData()
+    original_embed = discord.Embed(title="Fight!",
+                                   description=f"{ctx.author.mention} is starting a fight with {user.mention}!\nThe two of you, **press your respective buttons to ready up**!",
+                                   colour=discord.Colour.blurple()).add_field(name="Player 1",
+                                                                              value="Not Ready" if not tempdata.p1_ready else "Ready").add_field(
+        name="Player 2", value="Not Ready" if not tempdata.p2_ready else "Ready")
+    tempdata.original_view = View()
+    tempdata.original_view.disable_on_timeout = True
+    original_button_ready_p1 = Button(label=f"[1] {ctx.author} 🟦", style=discord.ButtonStyle.gray, row=0)
+    original_button_ready_p2 = Button(label=f"[2] {user} 🟦", style=discord.ButtonStyle.gray, row=1)
+
+    async def original_button_ready_callback(interaction: discord.Interaction):
+        _client = 0
+        if interaction.user == ctx.author:
+            tempdata.p1_ready = True
+            _client = 0
+        elif interaction.user == user:
+            tempdata.p2_ready = True
+            _client = 1
+        edited_embed = discord.Embed(title="Fight!",
+                                     description=f"{ctx.author.mention} is starting a fight with {user.mention}!\nThe two of you, **press your respective buttons to ready up**!",
+                                     colour=discord.Colour.blurple()).add_field(name="Player 1",
+                                                                                value="Not Ready" if not tempdata.p1_ready else "Ready").add_field(
+            name="Player 2", value="Not Ready" if not tempdata.p2_ready else "Ready")
+        new_b = Button(label=f"[{_client + 1}] {ctx.author if _client == 0 else user} ☑",
+                       style=discord.ButtonStyle.blurple)
+        tempdata.original_view.children[_client] = new_b
+        await interaction.response.edit_message(embed=edited_embed, view=tempdata.original_view)
+
+    original_button_ready_p1.callback = original_button_ready_callback
+    original_button_ready_p2.callback = original_button_ready_callback
+
+    tempdata.original_view.add_item(original_button_ready_p1)
+    tempdata.original_view.add_item(original_button_ready_p2)
+
+    original_message = await ctx.reply(content=None, embed=original_embed, view=tempdata.original_view)
+
+    while True:
+        if tempdata.p1_ready and tempdata.p2_ready:
+            break
+        else:
+            await asyncio.sleep(0.01)
+
+    inter_message = await ctx.reply(content=f"{ctx.author.mention} and {user.mention}, game on!")
+    with open("mainbank.json") as f:
+        pl_data = json.load(f)
+    with open("item_database.json") as fw:
+        wep_data = json.load(fw)
+    pl1d = pl_data[str(ctx.author.id)]
+    pl2d = pl_data[str(ctx.author.id)]
+    pl1wep = []
+    pl2wep = []
+    for k, v in pl1d.items():
+        if k.startswith("w_") and v > 0:
+            pl1wep.append(k)
+
+    for k, v in pl2d.items():
+        if k.startswith("w_") and v > 0:
+            pl2wep.append(k)
+
+    pl1fwep = random.choice([i for i in pl1wep if wep_data[i]["slot"] == "primary"]), random.choice(
+        [i for i in pl1wep if wep_data[i]["slot"] == "secondary"])
+    pl2fwep = random.choice([i for i in pl2wep if wep_data[i]["slot"] == "primary"]), random.choice(
+        [i for i in pl2wep if wep_data[i]["slot"] == "secondary"])
+    await original_message.delete()
+    p1 = Player(*pl1fwep)
+    p2 = Player(*pl2fwep)
+    main_embed = discord.Embed(title="Shootout",
+                               description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                               colour=discord.Color.blurple())
+    main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
+                         value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+    main_embed.add_field(name=f"Player 2 [{user.name}]",
+                         value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+
+    await asyncio.sleep(1)
+    await inter_message.edit(content=None, embed=main_embed)
+
+    await asyncio.sleep(3)
+    button_attack = Button(label="Attack ⚔", style=discord.ButtonStyle.blurple)
+    button_swap = Button(label="Swap Weapons 🔄", style=discord.ButtonStyle.green)
+    button_heal = Button(label="Heal ⛑", style=discord.ButtonStyle.red)
+
+    async def button_attack_c(interaction: discord.Interaction):
+        if interaction.user == ctx.author:
+            # Player 1 attacked, player 2 takes damage.
+            await p2.take_damage(p1.primary)
+            # Update embeds.
+            new_main_embed = discord.Embed(title="Shootout",
+                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           colour=discord.Color.blurple())
+            new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
+                                     value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+            new_main_embed.add_field(name=f"Player 2 [{user.name}]",
+                                     value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+            await interaction.response.edit_message(embed=new_main_embed)
+        elif interaction.user == user:
+            # Player 2 attacked, player 1 takes damage.
+            await p1.take_damage(p2.primary)
+            # Update embeds.
+            new_main_embed = discord.Embed(title="Shootout",
+                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           colour=discord.Color.blurple())
+            new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
+                                     value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+            new_main_embed.add_field(name=f"Player 2 [{user.name}]",
+                                     value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+            await interaction.response.edit_message(embed=new_main_embed)
+        else:
+            await interaction.response.defer()
+
+    async def button_swap_c(interaction: discord.Interaction):
+        if interaction.user == ctx.author:
+            p1.swap_weapon()
+            # Update embeds
+            new_main_embed = discord.Embed(title="Shootout",
+                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           colour=discord.Color.blurple())
+            new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
+                                     value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+            new_main_embed.add_field(name=f"Player 2 [{user.name}]",
+                                     value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+            await interaction.response.edit_message(embed=new_main_embed)
+        elif interaction.user == user:
+            p2.swap_weapon()
+            new_main_embed = discord.Embed(title="Shootout",
+                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           colour=discord.Color.blurple())
+            new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
+                                     value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+            new_main_embed.add_field(name=f"Player 2 [{user.name}]",
+                                     value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+            await interaction.response.edit_message(embed=new_main_embed)
+        else:
+            interaction.response.defer()
+
+    button_attack.callback = button_attack_c
+    button_swap.callback = button_swap_c
+
+    async def view_timeout():
+        tempdata.fight_ended = True
+
+    view = View()
+    view.disable_on_timeout = True
+    view.on_timeout = view_timeout
+    view.add_item(button_attack)
+    view.add_item(button_swap)
+    view.add_item(button_heal)
+
+    await inter_message.edit(view=view)
+
+    while not tempdata.fight_ended:
+        await asyncio.sleep(0.01)
+
 
 # Player system/Casual
 @bot.command()
@@ -2331,27 +2724,28 @@ async def bet(ctx, amount: int = 1000):
     if win:
         embed = discord.Embed(title="CRIME.NET/Quick Bet", description="Result: **WIN!**",
                               colour=discord.Colour.green())
-        embed.add_field(name="Bain rolled:", value=bain_bet)
-        embed.add_field(name=f"You rolled:", value=player_bet)
+        embed.add_field(name="Bain rolled:", value=str(bain_bet))
+        embed.add_field(name=f"You rolled:", value=str(player_bet))
         embed.add_field(name=f"You won by ${baintools.format_number(diff * amount)}!",
                         value=f"_`Transaction completed: {baintools.generate_transaction_id(35)}`_", inline=False)
         await player_add_bal(ctx.author.id, "cash", diff * amount)
         await ctx.reply(content=None, embed=embed)
     elif tie:
         embed = discord.Embed(title="CRIME.NET/Quick Bet", description="Result: **TIE!**", colour=discord.Colour.blue())
-        embed.add_field(name="Bain rolled:", value=bain_bet)
-        embed.add_field(name=f"You rolled:", value=player_bet)
+        embed.add_field(name="Bain rolled:", value=str(bain_bet))
+        embed.add_field(name=f"You rolled:", value=str(player_bet))
         embed.add_field(name=f"Tie!", value=f"_`Transaction cancelled: {baintools.generate_transaction_id(35)}`_",
                         inline=False)
         await ctx.reply(content=None, embed=embed)
     else:
         embed = discord.Embed(title="CRIME.NET/Quick Bet", description="Result: **LOSE!**", colour=discord.Colour.red())
-        embed.add_field(name="Bain rolled:", value=bain_bet)
-        embed.add_field(name=f"You rolled:", value=player_bet)
+        embed.add_field(name="Bain rolled:", value=str(bain_bet))
+        embed.add_field(name=f"You rolled:", value=str(player_bet))
         embed.add_field(name=f"You lost by ${baintools.format_number(diff * amount)}!",
                         value=f"_`Transaction completed: {baintools.generate_transaction_id(35)}`_", inline=False)
         await player_add_bal(ctx.author.id, "cash", diff * amount * -1)
         await ctx.reply(content=None, embed=embed)
+
 
 @bot.command()
 async def scout(ctx):
@@ -2394,7 +2788,8 @@ async def scout(ctx):
                                       colour=discord.Color.og_blurple())
             await interaction.response.edit_message(content=None, embed=embed_end, view=None)
         else:
-            embed_end = discord.Embed(title="The Search", description=f"You found ${baintools.format_number(earnings)}!",
+            embed_end = discord.Embed(title="The Search",
+                                      description=f"You found ${baintools.format_number(earnings)}!",
                                       colour=discord.Color.green())
             await interaction.response.edit_message(content=None, embed=embed_end,
                                                     view=None)
@@ -2416,11 +2811,13 @@ async def scout(ctx):
 
     await ctx.reply(content=None, embed=embed, view=view)
 
+
 # Owner-only.
 @bot.command()
 @commands.is_owner()
 async def _status(ctx):
     await ctx.reply(f"Online! Running.")
+
 
 @bot.command()
 @commands.is_owner()
@@ -2433,6 +2830,7 @@ async def _logout(ctx: commands.Context):
         print(f"An error occurred.\n{e}")
         return
 
+
 @bot.command(name="_geninv")
 @commands.is_owner()
 async def _gen_inv(ctx, id: int):
@@ -2443,14 +2841,12 @@ async def _gen_inv(ctx, id: int):
     user = ctx.author
 
     name = guild.name
-    avatar = guild.icon
     owner = guild.owner
     member_count = guild.approximate_member_count
     online_count = guild.approximate_presence_count
     channel = await guild.text_channels[0].create_invite(max_age=0, max_uses=1, temporary=False, unique=False)
 
     embed = discord.Embed(title=f"Invite Link for {name}")
-    embed.set_thumbnail(url=str(avatar))
     embed.add_field(name="Owner", value=f"{owner} (ID: {owner.id})", inline=False)
     embed.add_field(name="No. of members", value=f"{member_count}", inline=False)
     embed.add_field(name="No. of **online** members", value=f"```diff\n{online_count}\n```", inline=False)
@@ -2458,10 +2854,24 @@ async def _gen_inv(ctx, id: int):
     dm = await user.create_dm()
     await dm.send(content=f"{str(channel.url)}", embed=embed)
 
+
+@bot.command(name="_emoji_id")
+@commands.is_owner()
+async def _emoji_id(ctx, emoji: discord.Emoji):
+    await ctx.reply(
+        f"**Emoji Information**\nEmoji: <:{emoji.name}:{emoji.id}>\nEmoji name: `{emoji.name}`\nEmoji ID: `{emoji.id}`\nEmoji Qualname: `:{emoji.name}:{emoji.id}`\nEmoji Qualified Syntax: `<:{emoji.name}:{emoji.id}>`")
+
+
 @bot.command(name="_pyver")
 @commands.is_owner()
 async def _pyver(ctx):
-    embed = discord.Embed(title="Version Info", colour=discord.Colour.blurple()).add_field(name="Pycord Version", value=discord.__version__, inline=False).add_field(name="Pycord Release Level", value=f"Major: {discord.version_info.major}\nMinor: {discord.version_info.minor}\nMicro: {discord.version_info.micro}\nRelease Level: `{discord.version_info.release_level}`\nSerial: `{discord.version_info.serial}`\nBuild: {discord.version_info.build}\nCommit: `{discord.version_info.commit}`\nDate: {discord.version_info.date}", inline=False).add_field(name="Python version", value=sys.version, inline=False).set_thumbnail(url="https://www.python.org/static/img/python-logo@2x.png")
+    embed = discord.Embed(title="Version Info", colour=discord.Colour.blurple()).add_field(name="Pycord Version",
+                                                                                           value=discord.__version__,
+                                                                                           inline=False).add_field(
+        name="Pycord Release Level",
+        value=f"Major: {discord.version_info.major}\nMinor: {discord.version_info.minor}\nMicro: {discord.version_info.micro}\nRelease Level: `{discord.version_info.release_level}`\nSerial: `{discord.version_info.serial}`\nBuild: {discord.version_info.build}\nCommit: `{discord.version_info.commit}`\nDate: {discord.version_info.date}",
+        inline=False).add_field(name="Python version", value=sys.version, inline=False).set_thumbnail(
+        url="https://www.python.org/static/img/python-logo@2x.png")
     await ctx.reply(content=None, embed=embed)
 
 
@@ -2559,6 +2969,7 @@ async def get_category_desc(category=None):
         else:
             return json.load(file)
 
+
 # .define command
 async def dictsearch(arg):
     async with aiohttp.ClientSession() as session:
@@ -2568,13 +2979,17 @@ async def dictsearch(arg):
             r = await res.text()
             return r
 
+
 # CRIME.NET custom embed errors
 async def throw_crimenet_error(ctx: commands.Context, err_code: int = 404, note: str = None):
     guide = {
         400: "Bad request. Try passing some valid arguments?",
         404: "Not found. Try using a valid command?"
     }
-    await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/Error/{err_code}", description=f"{guide[err_code]}\n{'_(No additional information given.)_' if note is None else f'`{note}`'}", colour=discord.Colour.red()))
+    await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/Error/{err_code}",
+                                                      description=f"{guide[err_code]}\n{'_(No additional information given.)_' if note is None else f'`{note}`'}",
+                                                      colour=discord.Colour.red()))
+
 
 # .wiki command
 def wikisummary(arg):
