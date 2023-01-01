@@ -91,7 +91,8 @@ async def on_command_error(ctx: commands.Context, error):
         pass
 
     else:
-        print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+        print(f"Error time: {datetime.datetime.now()}\n"+'Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+        await ctx.reply("`An error occurred!`")
         traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
 
 
@@ -2474,6 +2475,12 @@ async def fight(ctx, user: discord.Member):
         await throw_crimenet_error(ctx, 400, "You cannot fight yourself.")
         return
 
+    try:
+        await player_add_bal(str(user.id), "cash", 0)
+    except KeyError:
+        await throw_crimenet_error(ctx, 404, "User is not on ` `CRIME.NET` `.")
+        return
+
     class Player:
         def __init__(self, _primary="w_amcar", _secondary="w_chimano88"):
             self.health = 4000
@@ -2493,13 +2500,14 @@ async def fight(ctx, user: discord.Member):
             with open("item_database.json") as f:
                 wep_data = json.load(f)
 
+            # Following comments will use AMCAR's stats as an example.
             stats = wep_data[self.primary]["data"]
-            __stab = stats["stability"] / 100
-            __acc = stats["accuracy"] / 100
-            __dmg = stats["damage"]
-            __mag = stats["magazine"]
-            _round_dmg = __dmg * __stab * __acc
-            _total_dmg = int(round(_round_dmg * __mag, 0))
+            __stab = random.randint(1, stats["stability"]) / 50  # 76 -> randint(1, 76) / 100 -> 0.72
+            __acc = random.randint(1, stats["accuracy"]) / 33  # 36 -> randint(1, 36) / 33 -> 0.36
+            __dmg = stats["damage"]  # 45
+            __mag = stats["magazine"]  # 30
+            _round_dmg = __dmg * __stab * __acc  # 45 (dmg) * 0.36 (stab) * 0.36 (acc) = 12
+            _total_dmg = int(round(_round_dmg * __mag, 0))  # 12 * 30 = around 360
 
             if self.health <= _total_dmg:
                 # Go down.
@@ -2508,7 +2516,7 @@ async def fight(ctx, user: discord.Member):
                     self.status["is_downed"] = True
                     self.downs = 0
                     self.health = 4000
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(2)
                     self.status["is_downed"] = False
                 else:
                     # Player has no downs, determine as loser.
@@ -2567,9 +2575,12 @@ async def fight(ctx, user: discord.Member):
                                                                                 value="Not Ready" if not tempdata.p1_ready else "Ready").add_field(
             name="Player 2", value="Not Ready" if not tempdata.p2_ready else "Ready")
         new_b = Button(label=f"[{_client + 1}] {ctx.author if _client == 0 else user} ☑",
-                       style=discord.ButtonStyle.blurple)
+                       style=discord.ButtonStyle.blurple, row=_client)
         tempdata.original_view.children[_client] = new_b
-        await interaction.response.edit_message(embed=edited_embed, view=tempdata.original_view)
+        try:
+            await interaction.response.edit_message(embed=edited_embed, view=tempdata.original_view)
+        except Exception:
+            pass
 
     original_button_ready_p1.callback = original_button_ready_callback
     original_button_ready_p2.callback = original_button_ready_callback
@@ -2635,7 +2646,7 @@ async def fight(ctx, user: discord.Member):
                 return
             # Update embeds.
             new_main_embed = discord.Embed(title="Shootout",
-                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           description="- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
                                            colour=discord.Color.blurple())
             new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
                                      value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
@@ -2651,7 +2662,7 @@ async def fight(ctx, user: discord.Member):
                 return
             # Update embeds.
             new_main_embed = discord.Embed(title="Shootout",
-                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           description="- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
                                            colour=discord.Color.blurple())
             new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
                                      value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
@@ -2666,7 +2677,7 @@ async def fight(ctx, user: discord.Member):
             p1.swap_weapon()
             # Update embeds
             new_main_embed = discord.Embed(title="Shootout",
-                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           description="- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
                                            colour=discord.Color.blurple())
             new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
                                      value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
@@ -2676,21 +2687,22 @@ async def fight(ctx, user: discord.Member):
         elif interaction.user == user:
             p2.swap_weapon()
             new_main_embed = discord.Embed(title="Shootout",
-                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           description="- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
                                            colour=discord.Color.blurple())
             new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
                                      value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
             new_main_embed.add_field(name=f"Player 2 [{user.name}]",
                                      value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
             await interaction.response.edit_message(embed=new_main_embed)
-         else:
-            interaction.response.defer()
+
+        else:
+            await interaction.response.defer()
 
     async def button_heal_c(interaction: discord.Interaction):
         if interaction.user == ctx.author:
             p1.use_fak()
             new_main_embed = discord.Embed(title="Shootout",
-                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           description="- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
                                            colour=discord.Color.blurple())
             new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
                                      value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
@@ -2700,7 +2712,7 @@ async def fight(ctx, user: discord.Member):
         elif interaction.user == user:
             p2.use_fak()
             new_main_embed = discord.Embed(title="Shootout",
-                                           description="**Fight will start in (approximately) 3 seconds!**\n\n- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                                           description="- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
                                            colour=discord.Color.blurple())
             new_main_embed.add_field(name=f"Player 1 [{ctx.author.name}]",
                                      value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
@@ -2709,7 +2721,7 @@ async def fight(ctx, user: discord.Member):
             await interaction.response.edit_message(embed=new_main_embed)
         else:
             await interaction.response.defer()
-    
+
     button_attack.callback = button_attack_c
     button_swap.callback = button_swap_c
     button_heal.callback = button_heal_c
@@ -2724,14 +2736,22 @@ async def fight(ctx, user: discord.Member):
     view.add_item(button_swap)
     view.add_item(button_heal)
 
-    await inter_message.edit(view=view)
+    newer_inter_e = discord.Embed(title="Shootout",
+                               description="- Use the attack button to attack!\n- Use First Aid Kits to heal!\n- Swap weapons for your other weapon!\n",
+                               colour=discord.Color.blurple())
+    newer_inter_e.add_field(name=f"Player 1 [{ctx.author.name}]",
+                         value=f"{'**➡Primary:**' if p1.status['w_slot'] == 1 else 'Primary:'} {wep_data[p1.primary]['name']}\n{'**➡Secondary:**' if p1.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p1.secondary]['name']}\n\n**Health:** {'{:,}'.format(p1.health)}\n**Downs left:** {p1.downs if p1.downs == 1 else '🔻' + str(p1.downs)}\n\n**First Aid Kits:** {p1.faks}")
+    newer_inter_e.add_field(name=f"Player 2 [{user.name}]",
+                         value=f"{'**➡Primary:**' if p2.status['w_slot'] == 1 else 'Primary:'} {wep_data[p2.primary]['name']}\n{'**➡Secondary:**' if p2.status['w_slot'] == 2 else 'Secondary:'} {wep_data[p2.secondary]['name']}\n\n**Health:** {'{:,}'.format(p2.health)}\n**Downs left:** {p2.downs if p2.downs == 1 else '🔻' + str(p2.downs)}\n\n**First Aid Kits:** {p2.faks}")
+
+    await inter_message.edit(view=view, embed=newer_inter_e)
 
     while not tempdata.fight_ended:
         await asyncio.sleep(0.01)
-    
-    if tempdata.winner = 0:
+
+    if tempdata.winner == 0:
         # Match abandoned.
-        await inter_message.edit(content=None, embed=discord.Embed(title="Shootout forfeited", description="This match was forfeited due to inactivity.", colour=discord.Colour.blurple()))
+        await inter_message.edit(content=None, embed=discord.Embed(title="Shootout forfeited", description="This match was forfeited due to inactivity.", colour=discord.Colour.blurple()), view=None)
         return
     else:
         winner = ctx.author if tempdata.winner == 1 else user
@@ -2739,8 +2759,8 @@ async def fight(ctx, user: discord.Member):
         await player_add_bal(str(winner.id), "cash", 100000)
         # Update embeds
         final_embed = discord.Embed(title="Shootout - Results", description=f"Fight had ended - **{winner.name}** (Player {tempdata.winner}) has won!", colour=discord.Colour.green())
-        final_embed.add_field(name="Player 1 [{ctx.author.name}]", value=("**🏆 Winner!**" if tempdata.winner == 1 else "**💀 In custody!**"))
-        final_embed.add_field(name="Player 2 [{user.name}]", value=("**🏆 Winner!**" if tempdata.winner == 2 else "**💀 In custody!**"))
+        final_embed.add_field(name=f"Player 1 [{ctx.author.name}]", value=("**🏆 Winner!**" if tempdata.winner == 1 else "**💀 In custody!**"))
+        final_embed.add_field(name=f"Player 2 [{user.name}]", value=("**🏆 Winner!**" if tempdata.winner == 2 else "**💀 In custody!**"))
         await inter_message.edit(embed=final_embed, view=None)
 
 # Player system/Casual
@@ -2921,6 +2941,16 @@ async def _pyver(ctx):
         url="https://www.python.org/static/img/python-logo@2x.png")
     await ctx.reply(content=None, embed=embed)
 
+
+@bot.slash_command(name="refresh", description="Refreshes the limit for Discord's ADB. Run once every 20 days to be safe.", guilds=[pr_secrets.gifted_fireplace_id])
+async def _refresh(ctx: discord.ApplicationContext):
+    if ctx.author.id == pr_secrets.owner_id:
+        try:
+            await ctx.respond(content="Done!")
+        except discord.NotFound:
+            await ctx.response.defer()
+    else:
+        await ctx.response.defer()
 
 # Fetch player database.
 async def player_database():
