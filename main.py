@@ -2474,7 +2474,9 @@ async def fight(ctx, user: discord.Member):
     if ctx.author == user:
         await throw_crimenet_error(ctx, 400, "You cannot fight yourself.")
         return
-
+    
+    await player_create(ctx, ctx.author.id)
+    
     try:
         await player_add_bal(str(user.id), "cash", 0)
     except KeyError:
