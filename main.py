@@ -1892,6 +1892,10 @@ async def buy(ctx, *args):
     data = await player_database()
     key = baintools.item_autocorrect(item, True)
 
+    if key in baintools.devonlyitems and ctx.author.id not in pr_secrets.developers:
+        await throw_crimenet_error(ctx, 400, "That is a developer-only item!")
+        return
+
     with open("item_database.json") as file:
         items = json.load(file)
     try:

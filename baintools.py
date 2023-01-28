@@ -8,7 +8,8 @@ from discord.ui import View, Button, Select
 from discord import SelectOption
 from re import sub
 
-item_prefixes = ["w", "wmod"]
+item_prefixes = ["w", "wmod", "devonly"]
+devonlyitems = ["devonly_ketchdev"]
 
 
 def snake_case(s):
@@ -188,9 +189,13 @@ emojis = {
     "amr16": "<:amr16:1048795631499612271>",
     "tempest21": "<:tempest21:1048796552023527574>",
     "union556": "<:union556:1048837519883649054>",
+    "commando553": "<:commando553:1068922952462119015>",
+    "eagleheavy": "<:eagleheavy:1068923085547384972>",
 
     "chimano88": "<:chimano_88:1032610049006239744>",
-    "crosskill": "<:crosskill:1032610050717519892>"
+    "crosskill": "<:crosskill:1032610050717519892>",
+
+    "ketchdev": "<:ketchnovdev:1068928489463500880>"
 }
 
 difficulty_scaling = {
@@ -251,6 +256,8 @@ class PlayerInfo:
         "w_amr16": 0,
         "w_tempest21": 0,
         "w_union556": 0,
+        "w_commando553": 0,
+        "w_eagleheavy": 0,
 
         # Secondary Weapons
         "w_chimano88": 1,
@@ -258,6 +265,9 @@ class PlayerInfo:
 
         # Weapon Mods
         "wmod_lowprofilesuppressor": 0,
+
+        # Dev-only items
+        "devonly_ketchdev": 0,
 
         # Heists
         "heist_stat_success": 0,

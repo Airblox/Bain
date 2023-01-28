@@ -1,15 +1,23 @@
+import json
+import os
 import discord
 import datetime
 import traceback
 import sys
-import pr_secrets
 
+from keep_alive import keep_alive
 from discord.ext import commands
 
 
-bot = commands.Bot(command_prefix="_", intents=discord.Intents.all(), owner_id=pr_secrets.owner_id,
+with open("ServerSupport/rep_secrets.json") as rep:
+    rep_secrets: dict = json.load(rep)
+
+bot = commands.Bot(command_prefix="_",
+                   intents=discord.Intents.all(),
+                   owner_id=rep_secrets['owner_id'],
                    auto_sync_commands=True)
 bot.remove_command("help")
+
 
 @bot.event
 async def on_ready():
@@ -20,7 +28,10 @@ async def on_ready():
         print(f"- {guild.name} ({guild.owner}, {guild.id}).")
         guild_count = guild_count + 1
 
-    print(f"(In {guild_count} servers in total.)\n\nAK17-EVA is online. Terminate the program to get it offline.")
+    print(
+        f"(In {guild_count} servers in total.)\n\nAK17-EVA is online. Terminate the program to get it offline."
+    )
+
 
 @bot.event
 async def on_command_error(ctx: commands.Context, error):
@@ -41,7 +52,8 @@ async def on_command_error(ctx: commands.Context, error):
 
     elif isinstance(error, commands.NoPrivateMessage):
         try:
-            await ctx.author.send(f'{ctx.command} can not be used in Private Messages.')
+            await ctx.author.send(
+                f'{ctx.command} can not be used in Private Messages.')
         except discord.HTTPException:
             pass
 
@@ -49,7 +61,8 @@ async def on_command_error(ctx: commands.Context, error):
         await ctx.reply(f'Bad argument passed for {ctx.command}')
 
     elif isinstance(error, commands.MissingPermissions):
-        await ctx.reply(f'Sorry - you do not have the permissions for using {ctx.command}.')
+        await ctx.reply(
+            f'Sorry - you do not have the permissions for using {ctx.command}.')
 
     elif isinstance(error, discord.errors.Forbidden):
         await ctx.reply(content=f"Sorry - `{error}`")
@@ -61,15 +74,20 @@ async def on_command_error(ctx: commands.Context, error):
         pass
 
     else:
-        print(f"Error time: {datetime.datetime.now()}\n"+'Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
+        print(f"Error time: {datetime.datetime.now()}\n" +
+              'Ignoring exception in command {}:'.format(ctx.command),
+              file=sys.stderr)
         await ctx.reply("`An error occurred!`")
-        traceback.print_exception(type(error), error, error.__traceback__, file=sys.stderr)
+        traceback.print_exception(type(error),
+                                  error,
+                                  error.__traceback__,
+                                  file=sys.stderr)
 
 
 @bot.command(name="setup")
 async def setup(ctx: commands.Context, _id: discord.TextChannel):
     print("Server setup message sent.")
-    file = discord.File("AK17-EVA.png")
+    file = discord.File("ServerSupport/AK17-EVA.png")
     context = """**Welcome to Bain's community and support server! Please read the rules to continue.**
 
 **#1** - Please use common. No spam, no racism, be respectful, etc.
@@ -86,18 +104,31 @@ async def setup(ctx: commands.Context, _id: discord.TextChannel):
 **#12** - Memes are allowed, but please do not post offensive ones. Please refer to the rules above."""
 
     class MyView(discord.ui.View):
+
         def __init__(self):
             super().__init__(timeout=None)
 
-        @discord.ui.button(label="I have read and agreed to the rules.", style=discord.ButtonStyle.primary)
-        async def button_callback(self, _, interaction: discord.Interaction):
-            if 1057701761130958849 not in interaction.user.roles:
-                await interaction.user.add_roles(discord.Object(1057805142524690473), reason="Verification.")
+        @discord.ui.button(label="I have read and agreed to the rules.",
+                           style=discord.ButtonStyle.primary)
+        async def button_callback(self, _, interaction):
+            if discord.Object(rep_secrets['role_verified']) not in interaction.user.roles:
+                await interaction.user.add_roles(interaction.user.guild.get_role(
+                    int(rep_secrets['role_verified'])),
+                    reason="Verification.")
                 await interaction.response.defer()
 
     await _id.send(file=file)
     await _id.send(content=context, view=MyView())
     await ctx.message.delete()
 
-bot.run(pr_secrets.support_server_bot_token)
+
+keep_alive()
+
+try:
+    bot.run(rep_secrets['__token'])
+except discord.errors.HTTPException:
+    print("\n\n\nBLOCKED BY RATE LIMITS\nRESTARTING NOW\n\n\n")
+    os.system('kill 1')
+    os.system("python restarter.py")
+
 print("AK17-EVA is now offline.")

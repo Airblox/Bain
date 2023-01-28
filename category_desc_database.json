@@ -8,5 +8,10 @@
     "name": "Weapon Mods",
     "description": "Attachments for weapons.",
     "emoji": "<:low_profile_suppressor:1031142434052243506>"
+  },
+  "developer only": {
+    "name": "Developer Only",
+    "description": "Items that are only owned by developers or gifted away!",
+    "emoji": "<:waspsilencer:1068927013194309652>"
   }
 }
