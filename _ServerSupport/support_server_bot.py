@@ -9,10 +9,16 @@ from keep_alive import keep_alive
 from discord.ext import commands
 
 
-with open("ServerSupport/rep_secrets.json") as rep:
-    rep_secrets: dict = json.load(rep)
+PATH_PREFIX = ""
 
-bot = commands.Bot(command_prefix="_",
+rep_secrets = {}
+try:
+    with open(f"{PATH_PREFIX}rep_secrets.json") as rep:
+        rep_secrets: dict = json.load(rep)
+except FileNotFoundError:
+    rep_secrets = dict(os.environ)
+
+bot = commands.Bot(command_prefix="",
                    intents=discord.Intents.all(),
                    owner_id=rep_secrets['owner_id'],
                    auto_sync_commands=True)
@@ -85,9 +91,9 @@ async def on_command_error(ctx: commands.Context, error):
 
 
 @bot.command(name="setup")
-async def setup(ctx: commands.Context, _id: discord.TextChannel):
+async def setup(ctx: commands.Context, _id: discord.TextChannel = None):
     print("Server setup message sent.")
-    file = discord.File("ServerSupport/AK17-EVA.png")
+    file = discord.File(f"{PATH_PREFIX}AK17-EVA.png")
     context = """**Welcome to Bain's community and support server! Please read the rules to continue.**
 
 **#1** - Please use common. No spam, no racism, be respectful, etc.
@@ -101,26 +107,24 @@ async def setup(ctx: commands.Context, _id: discord.TextChannel):
 **#9** - Just because something isn't explicitly written in the rules, that doesn't mean that it's allowed. Please use common sense.
 **#10** - Do not abuse the ping feature. It is not fun for a person to receive many notifications that have no important content.
 **#11** - Do not DM people for advertisement, harassment, insulting, or scamming purposes. If found, please report to the moderators or the administrators.
-**#12** - Memes are allowed, but please do not post offensive ones. Please refer to the rules above."""
+**#12** - Memes are allowed, but please do not post offensive ones. Please refer to the rules above.
 
-    class MyView(discord.ui.View):
-
-        def __init__(self):
-            super().__init__(timeout=None)
-
-        @discord.ui.button(label="I have read and agreed to the rules.",
-                           style=discord.ButtonStyle.primary)
-        async def button_callback(self, _, interaction):
-            if discord.Object(rep_secrets['role_verified']) not in interaction.user.roles:
-                await interaction.user.add_roles(interaction.user.guild.get_role(
-                    int(rep_secrets['role_verified'])),
-                    reason="Verification.")
-                await interaction.response.defer()
+Please head over to <#1059053612514426931> to get verified!"""
 
     await _id.send(file=file)
-    await _id.send(content=context, view=MyView())
+    await _id.send(content=context)
     await ctx.message.delete()
 
+
+@bot.command(name="verify")
+async def verify(ctx: commands.Context):
+    message = ctx.message
+    print(message.channel.id)
+    if message.channel.id == int(rep_secrets["channel_verify"]):
+        role = message.guild.get_role(int(rep_secrets["role_verified"]))
+        print(role)
+        await message.author.add_roles(role, reason="Verification.")
+        await message.delete()
 
 keep_alive()
 

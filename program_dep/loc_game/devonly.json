@@ -1,0 +1,3 @@
+{
+  "devonly_ketchdev": {"name": "KETCHNOV Byk-1, Developer Version", "description": "Developer version of the KETCHNOV Byk-1 Assault Rifle. Own this item? Damn impressive.", "type": "Developer-only weapon", "category": "developer only", "slot": "primary", "emoji": "<:ketchnovdev:1068928489463500880>", "data":  {"modes": ["Selective-firing", "Semi-automatic", "Automatic", "Volley-shot", "Slug", "Underbarrel"], "cost": 0, "magazine": 30, "total_ammo": 2250, "rate_of_fire": 100000, "damage": 3600, "accuracy": 100, "stability": 100, "concealment": 34, "threat": 43, "reload": 0}, "valid": true, "image_link": "https://static.wikia.nocookie.net/payday/images/6/61/KETCHNOV_Byk-1_FBI_Files.png/revision/latest?cb=20220225200829"}
+}

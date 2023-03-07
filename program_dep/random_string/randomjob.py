@@ -1,7 +1,7 @@
 import random
 import json
 
-with open('words.json', 'r') as f:
+with open('program_dep/random_string/words.json', 'r') as f:
     data = f.read()
 words = json.loads(data)
 
