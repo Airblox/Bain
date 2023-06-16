@@ -23,7 +23,7 @@ from program_dep.random_string import randomjob
 from datetime import date
 from collections import Counter
 from discord.ext import commands
-from discord.ui import Button, Select, View, Modal, InputText
+from discord.ui import Button, Select, View
 from wikipedia import PageError, DisambiguationError
 
 print(f"INITIALIZE AT {datetime.datetime.now()}\n")
