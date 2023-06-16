@@ -1,12 +1,10 @@
-import asyncio
-import time
 import random
 import string
-import discord
-import json
-from discord.ui import View, Button, Select
-from discord import SelectOption
+from typing import TypeVar
 from re import sub
+
+
+T = TypeVar("T")
 
 
 def snake_case(s):
@@ -16,16 +14,13 @@ def snake_case(s):
                 s.replace('-', ' '))).split()).lower()
 
 
-def swap_dict_index(_dict: dict, a: int, b: int):
-    test_dict = _dict
-    tups = list(test_dict.items())
-    tups[a], tups[b] = tups[b], tups[a]
-    res = dict(tups)
-
-    return res
-
-
 def split_page(_t, _i):
+    """
+    Splits a list into a list of lists.
+    :param _t: The list.
+    :param _i: The number of items per list.
+    :return:
+    """
     res = []
     cur_res = []
     while len(_t):
@@ -35,20 +30,6 @@ def split_page(_t, _i):
         res.append(cur_res)
         cur_res = []
     return res
-
-
-def to_roman(number: int):
-    result = ""
-    remainder = number
-    guide = {1000: "M", 900: "CM", 500: "D", 400: "CD", 100: "C", 90: "XC", 50: "L", 40: "XL", 10: "X", 9: "IX", 5: "V",
-             4: "IV", 1: "I"}
-
-    for index, (i, v) in enumerate(guide.items()):
-        q, r = divmod(remainder, i)
-        remainder = r
-        result += "".join([v for _ in range(q)])
-
-    return result
 
 
 def format_number(number: int):

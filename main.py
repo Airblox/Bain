@@ -17,7 +17,7 @@ import json
 import os
 import baintools
 import spotdl.__main__
-import pr_secrets
+import pr_secrets as real_pr_secrets
 
 from program_dep.random_string import randomjob
 from datetime import date
@@ -29,13 +29,22 @@ from wikipedia import PageError, DisambiguationError
 print(f"INITIALIZE AT {datetime.datetime.now()}\n")
 print("CRIME.NET CONNECTION\nSTATUS CODE: 200\n>>> Fetching server information...")
 
+
+# Replit configuration.
+class ProgramSecrets:
+    def __init__(self):
+        self.on_pycharm = True
+
+    def __getattr__(self, item):
+        return os.getenv(item) if not self.on_pycharm else getattr(real_pr_secrets, item)
+
+
+pr_secrets = ProgramSecrets()
 os.chdir(pr_secrets.os_dir)
 
 bot = commands.Bot(command_prefix=".", intents=discord.Intents.all(), owner_id=pr_secrets.owner_id,
                    auto_sync_commands=True)
 bot.remove_command("help")
-
-steam_api_key = pr_secrets.steam_api_key
 
 
 # Events
@@ -118,7 +127,8 @@ async def on_voice_state_update(member: discord.Member, before: discord.VoiceSta
 async def _help(ctx: commands.Context, command=None):
     """___category__General___category__
 ___parameters__None.___parameters__
-___description__Displays the help page."""
+___description__Displays the help page.___description__
+___duplicate__##none##___duplicate__"""
     if command is None:
         command_dict = {}
         for i in list(bot.commands):
@@ -126,11 +136,20 @@ ___description__Displays the help page."""
                 docstr = "No description available currently."
                 category = "unknown"
                 parameters = "unknown"
+                invoke = None
             else:
-                category = i.callback.__doc__.split("___category__")[1]
-                parameters = i.callback.__doc__.split("___parameters__")[1]
-                docstr = i.callback.__doc__.split("___description__")[1]
-            command_dict.update({i.name: {"doc": docstr, "category": category, "parameters": parameters}})
+                original_docstring = i.callback.__doc__
+                duplicate_split_docstring = original_docstring.split("___duplicate__")[0]
+                
+                category = duplicate_split_docstring.split("___category__")[1]
+                parameters = duplicate_split_docstring.split("___parameters__")[1]
+                docstr = duplicate_split_docstring.split("___description__")[1]
+                invoke = None if original_docstring.split("___duplicate__")[1] == "##none##" else i.callback.__doc__.split("___duplicate__")[1]
+
+            if invoke is None and not i.name.startswith("_"):
+                command_dict.update({i.name: {"doc": docstr, "category": category, "parameters": parameters}})
+
+        print(command_dict)
 
         command_keys = []
         command_info = []
@@ -138,111 +157,50 @@ ___description__Displays the help page."""
             command_keys.append(name)
             command_info.append(info)
 
-        name = baintools.split_page(command_keys, 5)
-        info = baintools.split_page(command_info, 5)
-
         categorised = {}
 
-        for _name, _info in zip(name, info):
+        for __name, __info in zip(command_keys, command_info):
             try:
-                for __name, __info in zip(_name, _info):
-                    categorised[__info["category"]].append(f"**{bot.command_prefix}{__name}**\n*{__info['doc']}*")
+                categorised[__info["category"]].append(f"**{bot.command_prefix}{__name}**\n*{__info['doc']}*")
             except KeyError:
-                for __name, __info in zip(_name, _info):
-                    categorised[__info["category"]] = [f"**{bot.command_prefix}{__name}**\n*{__info['doc']}*"]
+                categorised[__info["category"]] = [f"**{bot.command_prefix}{__name}**\n*{__info['doc']}*"]
 
-        for category, items in categorised.items():
-            categorised[category] = baintools.split_page(items, 5)
-
-        with open("program_dep/loc_other/command_category_description_database.json") as file:
+        with open("command_category_description_database.json") as file:
             cat_info = json.load(file)
 
-        categorised = {k: categorised[k] for k in list(cat_info.keys())}
+        for k in list(cat_info.keys()):
+            try:
+                categorised.update({k: categorised[k]})
+            except KeyError:
+                pass
 
         embeds = {}
         options = []
-        for page_name, lines in categorised.items():
+        for page_name, __line in categorised.items():
             # Per category
-            for __index, __line in enumerate(lines):
-                # Per page
-                cat_embed = discord.Embed(title=f"Help Page/{page_name}", description="\n\n".join(
-                    __line) + "\n\n_Tip: Use .help `command` for more details about a command!_",
-                                          colour=discord.Colour.blurple()).set_footer(
-                    text=f"Page {__index + 1}/{len(lines)}").set_thumbnail(
-                    url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734")
-                try:
-                    embeds[page_name].append(cat_embed)
-                except KeyError:
-                    embeds[page_name] = [cat_embed]
+            cat_embed = discord.Embed(title=f"Help Page/{page_name}",
+                                      description="\n\n".join(__line) + "\n\n_Tip: Use .help `command` for more details about a command!_",
+                                      colour=discord.Colour.blurple()).set_thumbnail(url="https://static.wikia.nocookie.net/payday/images/1/18/I_Wasn%27t_Even_There%21.jpg/revision/latest?cb=20130812172734")
+            try:
+                embeds[page_name].append(cat_embed)
+            except KeyError:
+                embeds[page_name] = [cat_embed]
             options.append(discord.SelectOption(label=page_name, description=cat_info[page_name]["description"],
                                                 emoji=cat_info[page_name]["emoji"]))
 
-        select = Select(placeholder="Select a category...", options=options)
-
         class Storage:
             def __init__(self):
-                self.page = 1
                 self.opened = False
 
         storage = Storage()
 
+        select = Select(placeholder="Select a category...", options=options)
+
         async def select_callback(interaction: discord.Interaction):
             if interaction.user == ctx.author:
                 if not storage.opened:
-                    view.add_item(button_prev)
-                    view.add_item(button_next)
-                    view.add_item(button_jump)
                     storage.opened = True
                 await interaction.response.edit_message(embed=embeds[select.values[0]][0], view=view)
-
-        button_prev = Button(label="⏪ Prev.", style=discord.ButtonStyle.blurple)
-        button_next = Button(label="⏩ Next", style=discord.ButtonStyle.blurple)
-        button_jump = Button(label="Jump...", style=discord.ButtonStyle.gray)
-
-        modal = Modal(title="Blackmarket: Jump to...")
-        modal_field = InputText(label="Page Number", style=discord.InputTextStyle.short)
-        modal.add_item(modal_field)
-
-        async def modal_callback(interaction):
-            if interaction.user == ctx.author:
-                try:
-                    await interaction.response.edit_message(
-                        embed=embeds[select.values[0]][int(modal.children[0].value) - 1])
-                except (TypeError, IndexError, ValueError) as error_msg:
-                    await interaction.response.send_message(content=f"Input something valid.\n`{error_msg}`",
-                                                            ephemeral=True)
-
-        modal.callback = modal_callback
-
-        async def button_jump_callback(interaction: discord.Interaction):
-            if interaction.user == ctx.author:
-                await interaction.response.send_modal(modal)
-
-        async def button_prev_callback(interaction):
-            if interaction.user == ctx.author:
-                if storage.page == 1:
-                    await interaction.response.defer()
-                    await interaction.followup.send(content="It's already the first page!", ephemeral=True, wait=True)
-                else:
-                    storage.page -= 1
-                    new_embed = embeds[select.values[0]][storage.page - 1]
-                    await interaction.response.edit_message(embed=new_embed)
-
-        async def button_next_callback(interaction):
-            if interaction.user == ctx.author:
-                length_of_cat = len(embeds[select.values[0]])
-                if storage.page == length_of_cat:
-                    await interaction.response.defer()
-                    await interaction.followup.send(content="It's already the last page!", ephemeral=True, wait=True)
-                else:
-                    storage.page += 1
-                    new_embed = embeds[select.values[0]][storage.page - 1]
-                    await interaction.response.edit_message(embed=new_embed)
-
-        select.callback = select_callback
-        button_prev.callback = button_prev_callback
-        button_next.callback = button_next_callback
-        button_jump.callback = button_jump_callback
 
         select.callback = select_callback
         view = View()
@@ -281,7 +239,8 @@ async def assign_role(ctx, role: discord.Role, user: discord.Member = None):
     """___category__Moderation___category__
 ___parameters__`role` - The role to assign.
 `user` - The user to assign to.___parameters__
-___description__Assigns a role to a member."""
+___description__Assigns a role to a member.___description__
+___duplicate__##none##___duplicate__"""
     await user.add_roles(role)
     await ctx.send(f"Assigned {user.mention} the role of {role}. (Moderator: {ctx.author.mention}.)")
 
@@ -292,7 +251,8 @@ async def demote_role(ctx, role: discord.Role, user: discord.Member = None):
     """___category__Moderation___category__
 ___parameters__`role` - The role to remove.
 `user` - The user to remove the role from.___parameters__
-___description__Removes a role from a member."""
+___description__Removes a role from a member.___description__
+___duplicate__##none##___duplicate__"""
     await user.remove_roles(role)
     await ctx.send(f"Moderator {ctx.author.mention} has fired {user.mention} from the role of {role}.")
 
@@ -302,7 +262,8 @@ ___description__Removes a role from a member."""
 async def clear(ctx, arg):
     """___category__Moderation___category__
 ___parameters__`arg` - The number of messages to clear.___parameters__
-___description__Deletes messages in a channel."""
+___description__Deletes messages in a channel.___description__
+___duplicate__purge___description"""
     msg = await ctx.send(f"Purging/clearing {arg} messages...")
     await msg.delete()
     await ctx.channel.purge(limit=(int(arg) + 1))
@@ -315,7 +276,8 @@ ___description__Deletes messages in a channel."""
 async def purge(ctx, arg):
     """___category__Moderation___category__
 ___parameters__`arg` - The number of messages to clear.___parameters__
-___description__Deletes messages in a channel."""
+___description__Deletes messages in a channel.___description__
+___duplicate__##none##___duplicate__"""
     await ctx.invoke(clear, arg)
 
 
@@ -326,7 +288,8 @@ async def timeout(ctx, user: discord.Member = None, time=None, *, reason=None):
 ___parameters__`user` - The user to timeout.
 `time` - The length of the timeout. (e.g. 1h)
 `reason` - *Optional*. The reason for the timeout, shown in the audit log.___parameters__
-___description__Timeouts a user."""
+___description__Timeouts a user.___description__
+___duplicate__##none##___duplicate__"""
     time = humanfriendly.parse_timespan(time)
     await user.timeout(until=discord.utils.utcnow() + datetime.timedelta(seconds=time),
                        reason=f"{ctx.author} - {reason}")
@@ -340,7 +303,8 @@ async def untimeout(ctx, user: discord.Member = None, *, reason=None):
     """___category__Moderation___category__
 ___parameters__`user` - The user to remove the timeout from.
 `reason` - *Optional*. The reason for removing the timeout, shown in the audit log.___parameters__
-___description__Removes a timeouts from a user."""
+___description__Removes a timeouts from a user.___description__
+___duplicate__##none##___duplicate__"""
     await user.timeout(until=None, reason=reason)
     await ctx.send(f"Timeout has been removed from {user.mention} by {ctx.author.mention}. [Reason: {reason}]")
 
@@ -351,7 +315,8 @@ async def kick(ctx, user: discord.Member = None, *kick_reason):
     """___category__Moderation___category__
 ___parameters__`user` - The user to kick.
 `reason` - *Optional*. The reason for the kick, shown in the audit log.___parameters__
-___description__Kicks a user."""
+___description__Kicks a user.___description__
+___duplicate__##none##___duplicate__"""
     reason = " ".join(kick_reason)
     if user == None:
         await ctx.reply("Specify a user.")
@@ -366,7 +331,8 @@ async def ban(ctx, user: discord.Member = None, deletemessages="false", reason=N
     """___category__Moderation___category__
 ___parameters__`user` - The user to ban.
 `reason` - *Optional*. The reason for the ban, shown in the audit log.___parameters__
-___description__Bans a user."""
+___description__Bans a user.___description__
+___duplicate__##none##___duplicate__"""
     if user == None:
         await ctx.reply("Specify a user.")
     else:
@@ -386,7 +352,8 @@ async def unban(ctx, user: discord.User = None, reason=None):
     """___category__Moderation___category__
 ___parameters__`user` - The user to unban.
 `reason` - *Optional*. The reason for the revocation of the ban, shown in the audit log.___parameters__
-___description__Unbans a user."""
+___description__Unbans a user.___description__
+___duplicate__##none##___duplicate__"""
     if user is None:
         await ctx.reply("Specify a user.")
     else:
@@ -400,7 +367,8 @@ async def prune(ctx, duration=7, reason="None.", *roles):
     """___category__Moderation___category__
 ___parameters__`duration` - The time range for the prune.
 `reason` - *Optional*. The reason for the prune, shown in the audit log.___parameters__
-___description__Prunes members - kicks members who have been inactive."""
+___description__Prunes members - kicks members who have been inactive.___description__
+___duplicate__##none##___duplicate__"""
     guild = ctx.guild
 
     pruning = await guild.prune_members(days=duration, roles=roles, reason=f"{ctx.author} - reason")
@@ -414,7 +382,8 @@ ___description__Prunes members - kicks members who have been inactive."""
 async def addrole(ctx, *role_name):
     """___category__Server Management___category__
 ___parameters__`role_name` - The name of the role to create.___parameters__
-___description__Adds a role with permission options."""
+___description__Adds a role with permission options.___description__
+___duplicate__##none##___duplicate__"""
     rolename = " ".join(role_name)
     addrole_embed = discord.Embed(
         title="New Role",
@@ -609,7 +578,8 @@ ___description__Adds a role with permission options."""
 async def delrole(ctx, *args):
     """___category__Server Management___category__
 ___parameters__`role_name` - The name of the role to delete.___parameters__
-___description__Deletes a role."""
+___description__Deletes a role.___description__
+___duplicate__##none##___duplicate__"""
     arg = " ".join(args)
     role = discord.utils.get(ctx.message.guild.roles, name=arg)
 
@@ -659,7 +629,8 @@ ___description__Deletes a role."""
 async def invite(ctx):
     """___category__Server Management___category__
 ___parameters__None.___parameters__
-___description__Creates an invite."""
+___description__Creates an invite.___description__
+___duplicate__##none##___duplicate__"""
     original = await ctx.reply("Creating invite...")
     invite_link_invite = await ctx.channel.create_invite()
     invite_link = str(invite_link_invite)
@@ -696,7 +667,8 @@ ___description__Creates an invite."""
 async def revokeinvite(ctx, arg, reason="None."):
     """___category__Server Management___category__
 ___parameters__`inv` - The link, or ID of the invite to revoke.___parameters__
-___description__Revokes an invite."""
+___description__Revokes an invite.___description__
+___duplicate__##none##___duplicate__"""
     arg1 = arg.replace("https://discord.gg/", "")
     delete_invite = await bot.fetch_invite(url=f"https://discord.gg/{arg1}", with_counts=False, with_expiration=False)
     await delete_invite.delete(reason=reason)
@@ -708,7 +680,8 @@ ___description__Revokes an invite."""
 async def ping(ctx):
     """___category__Tools___category__
 ___parameters__None.___parameters__
-___description__Responds with the bot's latency."""
+___description__Responds with the bot's latency.___description__
+___duplicate__##none##___duplicate__"""
     pingembed = discord.Embed(
         title="Pong!",
         description=f"Latency: {round(bot.latency * 1000)} ms.",
@@ -721,7 +694,8 @@ ___description__Responds with the bot's latency."""
 async def cmd_wikipedia(ctx, *args):
     """___category__Tools___category__
 ___parameters__`subject` - The thing to search on Wikipedia.___parameters__
-___description__Gets a result from Wikipedia."""
+___description__Gets a result from Wikipedia.___description__
+___duplicate__##none##___duplicate__"""
     search_keyword = " ".join(args)
     search_wait = await ctx.reply(f"*Searching \"{search_keyword}\" on Wikipedia...*")
     try:
@@ -746,7 +720,8 @@ ___description__Gets a result from Wikipedia."""
 async def define(ctx, *args):
     """___category__Tools___category__
 ___parameters__`term` - The word to search up in the dictionary.___parameters__
-___description__Searches up a word in the dictionary."""
+___description__Searches up a word in the dictionary.___description__
+___duplicate__##none##___duplicate__"""
     arg = " ".join(args)
     async with ctx.typing():
         result2 = await dictsearch(arg)
@@ -809,7 +784,8 @@ ___parameters__
 
 `title` - **Wrap in quotes.** The title of the poll.
 `*options` - The options for the poll, separated with a comma.___parameters__
-___description__Creates a poll for everyone to vote in the server."""
+___description__Creates a poll for everyone to vote in the server.___description__
+___duplicate__##none##___duplicate__"""
     name = name.replace(",", "")
     args_list = []
     current_arg = ""
@@ -958,7 +934,8 @@ ___parameters__
 **Quick Note:** Please ask close-ended (yes/no) questions to make the command make sense.
 
 `question` - Your question to ask.___parameters__
-___description__Get responses to your questions."""
+___description__Get responses to your questions.___description__
+___duplicate__##none##___duplicate__"""
     possibleanswers = ["It is certain.",  # positive
                        "It is decidely so.",
                        "Without a doubt.",
@@ -991,7 +968,8 @@ ___parameters__
 (You can seperate your numbers with commas.)
 `lower` - Your lower limit for the random number.
 `upper` - Your upper limit for the random number.___parameters__
-___description__Generate a random number."""
+___description__Generate a random number.___description__
+___duplicate__##none##___duplicate__"""
     numbers = [int(i.replace(" ", "")) for i in
                (" ".join(numbers).split(",") if len(" ".join(numbers).split(",")) > 1 else numbers)]
     embed = discord.Embed(title="CRIME.NET/Random Number Generator", colour=discord.Colour.blurple())
@@ -1001,46 +979,13 @@ ___description__Generate a random number."""
     await ctx.reply(content=None, embed=embed)
 
 
-@bot.command()
-async def numberguess(ctx, arg: int):
-    """___category__Tools___category__
-___parameters__`arg` - A number, which is the answer. Type "leaderboard" for the leaderboard.___parameters__
-___description__Lets the bot guess a number, to see how close it is to your number.
-The limit for guessing is `±100`."""
-    if arg > 100 or arg < -100:
-        await throw_crimenet_error(ctx, 400,
-                                   "Number is either too large or too small. Must be within the range of` `-100` `to` `100` `inclusive.")
-        return
-
-    bot_guess = random.randint(-100, 100)
-    _diff = abs(bot_guess - arg)
-    res = ""
-    diff = ""
-    if bot_guess > arg:
-        res = "larger"
-    elif bot_guess < arg:
-        res = "smaller"
-    elif bot_guess == arg:
-        res = "same"
-
-    if res == "larger":
-        diff = f"{bot_guess - arg} larger than your guess!"
-    elif res == "smaller":
-        diff = f"{arg - bot_guess} smaller than your guess!"
-    elif res == "same":
-        diff = "Tie! That's... really rare!"
-
-    await ctx.reply(content=None, embed=discord.Embed(title="Number Guessing",
-                                                      description=f"**Your guess:** {arg}\n**Bain's guess:** {bot_guess}\n\n*{diff}*",
-                                                      colour=discord.Color.blurple()))
-
-
 # Trolling
 @bot.command()
 async def nitro(ctx):
     """___category__General___category__
 ___parameters__None.___parameters__
-___description__Generates a fake Nitro claim embed."""
+___description__Generates a fake Nitro claim embed.___description__
+___duplicate__##none##___duplicate__"""
     nitroembed = discord.Embed(
         description=f"**{ctx.author.mention} generated a Nitro link!**",
         color=discord.Colour.nitro_pink()
@@ -1079,7 +1024,8 @@ ___description__Generates a fake Nitro claim embed."""
 async def _tryitandsee(ctx, user: discord.Member = None):
     """___category__General___category__
 ___parameters__`user (optional)` - The user you want to tell "try it and see".___parameters__
-___description__Tell someone to try it and see."""
+___description__Tell someone to try it and see.___description__
+___duplicate__##none##___duplicate__"""
     if user is None:
         user = ctx.author
     try:
@@ -1094,7 +1040,8 @@ ___description__Tell someone to try it and see."""
 async def kill(ctx, *, arg: str):
     """___category__General___category__
 ___parameters__`user` - The user to kill (verbally).___parameters__
-___description__Kills a user (verbally)."""
+___description__Kills a user (verbally).___description__
+___duplicate__##none##___duplicate__"""
     if arg == "me" or arg == ctx.author.mention:
         await ctx.send(f"You've committed suicide. Welcome to The Bad Place.")
     elif arg.lower() in ["bain", pr_secrets.bain_id, f"<@{pr_secrets.bain_id}>"]:
@@ -1139,7 +1086,8 @@ ___description__Kills a user (verbally)."""
 async def hack(ctx, user: discord.Member):
     """___category__General___category__
 ___parameters__`user` - The user to hack.___parameters__
-___description__Hacks a user."""
+___description__Hacks a user.___description__
+___duplicate__##none##___duplicate__"""
     hack_lobby = discord.Embed(
         title="Welcome to CRIME.NET",
         description="Welcome to crime.net. My name is Bain, and I'll be guiding you throughout your hack. I'm a "
@@ -1633,7 +1581,8 @@ async def rickroll(ctx, user: discord.Member = None):
 ___parameters__**Quick Note:** The rickroll will be sent to everyone. Specifying who to rickroll will ping them in the message sent.
 
 `user (optional)` - The user to rickroll.___parameters__
-___description__Rickrolls a user (and whoever that sees it)."""
+___description__Rickrolls a user (and whoever that sees it).___description__
+___duplicate__##none##___duplicate__"""
     if user is None:
         user = ctx.author
     embed = discord.Embed(title=":)",
@@ -1648,6 +1597,10 @@ ___description__Rickrolls a user (and whoever that sees it)."""
 # Voice
 @bot.command()
 async def join(ctx):
+    """___category__Voice___category__
+___parameters__**Quick Note:** The bot can only join one voice channel per server.___parameters__
+___description__Joins the voice channel you are connected to.___description__
+___duplicate__##none##___duplicate__"""
     try:
         channel = ctx.author.voice.channel
         await channel.connect()
@@ -1664,6 +1617,10 @@ async def join(ctx):
 
 @bot.command()
 async def leave(ctx):
+    """___category__Voice___category__
+___parameters__None.___parameters__
+___description__Leaves whichever voice channel Bain is connected to.___description__
+___duplicate__##none##___duplicate__"""
     try:
         await ctx.guild.voice_client.disconnect()
     except Exception:
@@ -1673,6 +1630,12 @@ async def leave(ctx):
 @bot.command()
 @commands.has_permissions(moderate_members=True)
 async def disconnect(ctx, user: discord.Member, reason=None):
+    """___category__Voice___category__
+___parameters__`user` - The user to disconnect.
+
+`reason` - *Optional.* The reason for disconnecting the user, shown in the audit log.___parameters__
+___description__Disconnects a user from a voice channel.___description__
+___duplicate__##none##___duplicate__"""
     try:
         if ctx.author.top_role > user.top_role:
             # noinspection PyTypeChecker
@@ -1686,11 +1649,21 @@ async def disconnect(ctx, user: discord.Member, reason=None):
 
 @bot.command()
 async def stop(ctx):
+    """___category__Voice___category__
+___parameters__None.___parameters__
+___description__Leaves whichever voice channel Bain is connected to.___description__
+___duplicate__leave___duplicate"""
     await ctx.invoke(leave)
 
 
 @bot.command()
 async def play(ctx: commands.Context, *, song: str):
+    """___category__Voice___category__
+___parameters__**Note:** You can only play songs available on Spotify. You can enter a song name and Bain will search for you, or enter the Spotify URL directly.
+
+`song` - The song you would like to play.___parameters__
+___description__Plays a song in your voice channel.___description__
+___duplicate__##none##___duplicate__"""
     if song.startswith("https://open.spotify.com/album"):
         await ctx.reply("You can only play songs, not albums for now. (Skill issue.)")
         return
@@ -1756,6 +1729,7 @@ async def play(ctx: commands.Context, *, song: str):
                                                               description=f"Now playing: **{[i for i in os.listdir(pr_secrets.os_dir_music) if i.startswith(str(ctx.author.guild.id))][0].split(str(ctx.author.guild.id) + '___')[1].replace('.mp3', '')}**",
                                                               colour=discord.Color.blurple()))
 
+
 # Owner-only.
 @bot.command()
 @commands.is_owner()
@@ -1819,7 +1793,7 @@ async def _pyver(ctx):
     await ctx.reply(content=None, embed=embed)
 
 
-@bot.slash_command(name="refresh", description="Refreshes the limit for Discord's ADB. Run once every 20 days to be safe.", guilds=[pr_secrets.gifted_fireplace_id])
+@bot.slash_command(name="refresh", description="Refreshes the limit for Discord's ADB.", guilds=[pr_secrets.gifted_fireplace_id])
 async def _refresh(ctx: discord.ApplicationContext):
     if ctx.author.id == pr_secrets.owner_id:
         try:
@@ -1830,6 +1804,7 @@ async def _refresh(ctx: discord.ApplicationContext):
         await ctx.response.defer()
 
 
+# Function dependencies.
 # .define command
 async def dictsearch(arg):
     async with aiohttp.ClientSession() as session:
@@ -1840,23 +1815,22 @@ async def dictsearch(arg):
             return r
 
 
-# CRIME.NET custom embed errors
-async def throw_crimenet_error(ctx: commands.Context, err_code: int = 404, note: str = None):
-    guide = {
-        400: "Bad request. Try passing some valid arguments?",
-        404: "Not found. Try using a valid command?"
-    }
-    await ctx.reply(content=None, embed=discord.Embed(title=f"CRIME.NET/Error/{err_code}",
-                                                      description=f"{guide[err_code]}\n{'_(No additional information given.)_' if note is None else f'`{note}`'}",
-                                                      colour=discord.Colour.red()))
-
-
 # .wiki command
 def wikisummary(arg):
     definition = wikipedia.summary(arg, sentences=3, chars=1000)
     url = wikipedia.page(arg, redirect=True).url
     search_keyword = wikipedia.page(arg, redirect=True).title
     return definition, url, search_keyword
+
+
+# Error presets.
+async def throw_crimenet_error(ctx: commands.Context, error_code: int, message: str):
+    error_dict = {
+        400: "Bad request. Try passing some valid arguments, yes?",
+        404: "Not found. Try using some valid commands, yes?"
+    }
+    embed = discord.Embed(title=f"CRIME.NET/Error/{error_code}", description=f"{error_dict[error_code]}\n`{message}`", colour=discord.Colour.red())
+    await ctx.reply(message=None, embed=embed)
 
 
 bot.run(pr_secrets.discord_bot_token)

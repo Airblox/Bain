@@ -9,6 +9,11 @@
     "description": "Useful commands.",
     "emoji": "<:icepick:1033784960622010419>"
   },
+  "Voice": {
+    "name": "Voice",
+    "description": "Commands related to voice and voice channels.",
+    "emoji": "<:microphone:1082602923151867966>"
+  },
   "Moderation": {
     "name": "Moderation",
     "description": "Commands for moderation.",
@@ -18,6 +23,16 @@
     "name": "Server Management",
     "description": "Commands for managing the server.",
     "emoji": "<:tradecard_bain:1033584291990491146>"
+  },
+  "Profile": {
+    "name": "Profile",
+    "description": "Commands related to your player profile.",
+    "emoji": "<:category_profile:1084120076996853860>"
+  },
+  "Currency": {
+    "name": "Currency",
+    "description": "Commands related to your player's economy and inventory.",
+    "emoji": "<:money_bundle:1095267069588688957>"
   },
   "unknown": {
     "name": "To be added.",

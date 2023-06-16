@@ -1,3 +1,0 @@
-{
-  "wmod_lowprofilesuppressor": {"name": "Low Profile Suppressor", "description": "Suppressor, highly concealable.", "type": "Suppressor", "category": "weapon mod", "slot": "barrel extension", "emoji": "<:low_profile_suppressor:1031142434052243506>", "data": {"effects": ["Silences weapon.", "Silences weapon."], "cost": 21000, "total_ammo": null, "reload": null, "accuracy": null, "concealment": null, "magazine": null, "damage": -5, "stability": null, "threat": -16.8}, "valid": true, "image_link": "https://static.wikia.nocookie.net/payday/images/a/ad/The_Bigger_The_Better.png/revision/latest/scale-to-width-down/230?cb=20160315060844"}
-}
